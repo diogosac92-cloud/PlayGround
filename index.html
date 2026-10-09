@@ -224,6 +224,7 @@ input:focus,select:focus{border-color:var(--gold)}
       <div class="rowbtns"><button class="btn" id="btnExport">⬇️ Exportar</button><button class="btn" id="btnImport">⬆️ Importar</button></div>
       <div class="rowbtns"><button class="btn ghost" id="btnDemo">🎲 Carregar exemplo</button><button class="btn danger" id="btnWipe">🗑️ Começar do zero</button></div>
       <input type="file" id="fileImp" accept="application/json" style="display:none">
+      <div id="storeInfo" class="kbd" style="margin-top:8px;line-height:1.6"></div>
       <p class="kbd">Os dados ficam guardados neste dispositivo (localStorage). Funciona offline em telemóvel/tablet. Adiciona ao ecrã principal para usar como app.</p>
     </div>
   </section>
@@ -244,14 +245,16 @@ input:focus,select:focus{border-color:var(--gold)}
   <h2 id="assetTitle">＋ Novo ativo</h2>
   <div class="frow"><div><label>Ticker</label><input id="fTicker" placeholder="EDP" maxlength="12"></div>
   <div><label>Nome / Empresa</label><input id="fName" placeholder="EDP Renováveis"></div></div>
-  <div class="rowbtns" style="margin-top:10px"><button class="btn" id="btnDivs">📊 Buscar referência (TradingView)</button></div>
+  <div class="rowbtns" style="margin-top:10px"><button class="btn" id="btnDivs">📊 Buscar dados do ticker (internet)</button></div>
   <div id="divStatus" class="kbd" style="margin-top:8px;line-height:1.5"></div>
   <label>🧾 Compras (cada lote: data, qtd e preço pago)</label>
   <div id="lotRows"></div>
   <div class="rowbtns" style="margin-top:8px"><button class="btn" id="btnAddLot">＋ Adicionar compra</button></div>
   <div id="lotTotal" class="kbd" style="margin-top:8px;line-height:1.6"></div>
-  <label>Dividendo anual estimado (€/ação)</label><input id="fDPA" type="number" inputmode="decimal" placeholder="2.08">
-  <p class="kbd" id="dpsHint">Soma de todos os pagamentos do ano por ação. Mesmo que variem por trimestre, usa o total anual.</p>
+  <label>Dividendo anual — cálculo automático (€/ação)</label>
+  <div id="dpaAuto" style="font-size:15px;font-weight:800;margin:2px 0 4px">—</div>
+  <div id="schedList" style="margin-top:4px"></div>
+  <p class="kbd">Sem procuras manuais: a app soma os pagamentos reais por trimestre da internet (datas ex-date e de pagamento incluídas).</p>
   <div class="rowbtns" style="margin-top:16px"><button class="btn ghost" data-close>Cancelar</button><button class="btn primary" id="saveAsset">Guardar (+20 XP)</button></div>
 </div></div>
 
@@ -350,12 +353,32 @@ function demoData(){return {cur:"€",xp:120,coins:6,claimed:[],goal:1200,goalSe
 window.loadDemo=function(){S=demoData();save();renderAll();switchView("v-home");toast("Exemplo carregado 🎲")};
 function mkDemo(){const out=[],y=new Date().getFullYear();const P=(m,a,v)=>out.push({id:uid(),assetTicker:a,date:`${y}-${String(m).padStart(2,"0")}-15`,amount:v});
  P(1,"EDP",54);P(1,"MSFT",10.92);P(2,"JMT",31.6);P(2,"MSFT",10.92);P(3,"EDP",54);P(3,"VWCE",40.5);P(4,"MSFT",10.92);P(4,"JMT",31.6);P(5,"EDP",54);P(6,"VWCE",40.5);return out}
-function load(){try{const r=localStorage.getItem(KEY);if(r){S=JSON.parse(r);migrate();save();return}}catch(e){} S=seed();save()}
+function load(){let raw=null;try{raw=localStorage.getItem(KEY)}catch(e){raw=null}
+ if(raw){try{S=JSON.parse(raw);migrate();assertValid(S);save();return}catch(e){}}
+ if(raw){try{const b=localStorage.getItem(KEY+":bak");if(b){S=JSON.parse(b);migrate();assertValid(S);save();setTimeout(()=>toast("Dados recuperados do backup 💾"),800);return}}catch(e){}}
+ if(raw){try{localStorage.setItem(KEY+":corrupt",raw)}catch(e){}}
+ S=seed();if(!raw){try{save()}catch(e){}}}
+function assertValid(o){if(!o||typeof o!=="object"||Array.isArray(o))throw new Error("bad root");
+ if(!Array.isArray(o.assets)||!Array.isArray(o.payments))throw new Error("bad lists");
+ for(const a of o.assets){if(!a||typeof a!=="object"||typeof a.ticker!=="string")throw new Error("bad asset")}}
+function pruneForSave(o){const c=JSON.parse(JSON.stringify(o));
+ for(const a of (c.assets||[])){for(const k of Object.keys(a)){if(k.charAt(0)==="_")delete a[k]}
+  if(a.hist&&Array.isArray(a.hist.pays)&&a.hist.pays.length>120)a.hist.pays=a.hist.pays.slice(-120);
+  if(Array.isArray(a.refs)&&a.refs.length>24)a.refs=a.refs.slice(-24)}
+ return c}
+let saveWarned=false;
+function save(){let data;
+ try{data=JSON.stringify(pruneForSave(S))}catch(e){return false}
+ try{localStorage.setItem(KEY,data);try{localStorage.setItem(KEY+":bak",data)}catch(e){}return true}
+ catch(e){
+  try{for(const a of S.assets){if(a.hist&&a.hist.pays) a.hist.pays=a.hist.pays.slice(-30);a.refs=Array.isArray(a.refs)?a.refs.slice(-5):a.refs}
+   S.fx=null;data=JSON.stringify(pruneForSave(S));localStorage.setItem(KEY,data);
+   if(!saveWarned){saveWarned=true;toast("⚠️ Espaço quase cheio — histórico da net reduzido. Exporta os dados!")}return true}
+  catch(e2){if(!saveWarned){saveWarned=true;toast("⚠️ Não consigo guardar (modo privado? armazenamento bloqueado?). Os dados perdem-se ao sair!")}return false}}}
 function migrate(){if(!S||typeof S!=="object")S=seed();if(typeof S.goal!=="number"||!(S.goal>0))S.goal=1200;if(typeof S.goalSet!=="boolean")S.goalSet=false;if(!Array.isArray(S.claimed))S.claimed=[];if(!Array.isArray(S.assets))S.assets=[];if(!Array.isArray(S.payments))S.payments=[];if(!S.fx)S.fx=null;
  if(!S.migratedAnnual){for(const a of S.assets){if(typeof a.dpsAnnual!=="number")a.dpsAnnual=Math.round((+a.divPerShare||0)*(+a.freq||1)*100)/100;delete a.divPerShare;delete a.freq;delete a.sector}S.migratedAnnual=true}
  if(!S.migratedLots){for(const a of S.assets){if(!Array.isArray(a.lots)||!a.lots.length)a.lots=[{id:"l"+Math.random().toString(36).slice(2,9),date:"",qty:+a.qty||0,price:+a.avgPrice||0}];
   let q=0,c=0;for(const l of a.lots){q+=+l.qty||0;c+=(+l.qty||0)*(+l.price||0)}a.qty=q;a.avgPrice=q>0?Math.round(c/q*10000)/10000:0}S.migratedLots=true}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 /* ============ XP / GAME ============ */
 function level(){let L=LEVELS[0],nx=null;for(let i=0;i<LEVELS.length;i++){if(S.xp>=LEVELS[i].xp)L=LEVELS[i];else{nx=LEVELS[i];break}}return{L,nx}}
@@ -365,15 +388,16 @@ function toast(m){const t=document.getElementById("toast");t.textContent=m;t.cla
 
 /* ============ STATS ============ */
 function stats(){const y=new Date().getFullYear(),m=new Date().getMonth();
- const inY=S.payments.filter(p=>p.date.startsWith(y+"-"));
- const tY=inY.reduce((a,p)=>a+ +p.amount,0), tT=S.payments.reduce((a,p)=>a+ +p.amount,0);
- const tM=S.payments.filter(p=>p.date.startsWith(`${y}-${String(m+1).padStart(2,"0")}`)).reduce((a,p)=>a+ +p.amount,0);
- const monthly=Array.from({length:12},(_,i)=>S.payments.filter(p=>p.date.startsWith(`${y}-${String(i+1).padStart(2,"0")}`)).reduce((a,p)=>a+ +p.amount,0));
- const byA={};S.payments.forEach(p=>{const k=p.assetTicker||"?";byA[k]=(byA[k]||0)+ +p.amount});
+ const amt=p=>+p.amount||0, dt=p=>p.date||"";
+ const inY=S.payments.filter(p=>dt(p).startsWith(y+"-"));
+ const tY=inY.reduce((a,p)=>a+amt(p),0), tT=S.payments.reduce((a,p)=>a+amt(p),0);
+ const tM=S.payments.filter(p=>dt(p).startsWith(`${y}-${String(m+1).padStart(2,"0")}`)).reduce((a,p)=>a+amt(p),0);
+ const monthly=Array.from({length:12},(_,i)=>S.payments.filter(p=>dt(p).startsWith(`${y}-${String(i+1).padStart(2,"0")}`)).reduce((a,p)=>a+amt(p),0));
+ const byA={};S.payments.forEach(p=>{const k=p.assetTicker||"?";byA[k]=(byA[k]||0)+amt(p)});
  const cost=S.assets.reduce((a,x)=>a+lotCost(x),0);
  const proj=S.assets.reduce((a,x)=>a+x.qty*(+x.dpsAnnual||0),0);
  const yld=cost>0?proj/cost*100:0;
- const fut=S.payments.filter(p=>p.date>=todayISO()).sort((a,b)=>a.date.localeCompare(b.date))[0];
+ const fut=S.payments.filter(p=>dt(p)>=todayISO()).sort((a,b)=>dt(a).localeCompare(dt(b)))[0];
  return{y,tY,tT,tM,monthly,byA,cost,proj,yld,nPay:S.payments.length,fut,m}}
 function assetColor(t){let h=0;for(const c of t)h=(h*31+c.charCodeAt(0))>>>0;return PALETTE[h%PALETTE.length]}
 
@@ -397,9 +421,23 @@ function renderHome(){const st=stats();document.getElementById("yearLbl").textCo
  document.getElementById("starter").style.display=(!S.assets.length&&!S.payments.length)?"block":"none";
  renderGoal(st);renderHomeWallet(st);drawMonths(st);drawDonut(st);}
 
+/* ============ Próximo pagamento (histórico em cache) ============ */
+function nextPayout(a,rates){if(!a.hist||!Array.isArray(a.hist.pays))return null;
+ const today=todayISO();
+ const fut=a.hist.pays.filter(p=>(p.pay||p.ex)>=today).sort((x,y)=>(x.pay||x.ex).localeCompare(y.pay||y.ex));
+ for(const p of fut){const ex=p.ex||p.pay,q=eligibleQty(a,ex);if(!(q>0))continue;
+  const ps=eurOf(p.perShare,a.hist.ccy,rates);
+  return{ex,pay:p.pay||p.ex,qty:q,perShare:ps,orig:+p.perShare||0,ccy:a.hist.ccy,amount:Math.round(q*ps*100)/100}}
+  return null}
+
 function renderHomeWallet(st){document.getElementById("homeWalletTag").textContent=S.assets.length+" ativos";
  document.getElementById("homeCap").textContent=fmt(st.cost);
- document.getElementById("homeWalletLines").innerHTML=`📈 Projeção anual (est.): <b style="color:#fff">${fmt(st.proj)}</b> · Yield est.: <b style="color:#fff">${st.yld.toFixed(2)}%</b><br>✅ Recebido em ${st.y}: <b style="color:#fff">${fmt(st.tY)}</b>${S.assets.length&&!S.payments.length?`<br>⚠️ <b style="color:var(--gold)">Ainda sem dividendos registados — regista o primeiro e ganha +50 XP!</b>`:""}`;
+ const rates=(S.fx&&S.fx.rates)||null;
+ const lines=S.assets.map(a=>{const ytd=ytdFor(a.ticker),nx=nextPayout(a,rates);
+  const inv=fmt(lotCost(a));
+  const nxt=nx?` · ⏭️ ex ${nx.ex} → paga ${nx.pay}: <b>${fmt(nx.amount)}</b>`:"";
+  return `🔹 <b>${esc(a.ticker)}</b> · ${a.qty} ações · ${inv}${nxt}<br><small style="margin-left:18px">recebido ${st.y}: <b>${fmt(ytd)}</b></small>`}).join("<br>");
+ document.getElementById("homeWalletLines").innerHTML=`📈 Projeção anual (cálculo auto): <b style="color:#fff">${fmt(st.proj)}</b> · Yield: <b style="color:#fff">${st.yld.toFixed(2)}%</b><br>✅ Recebido em ${st.y}: <b style="color:#fff">${fmt(st.tY)}</b>${lines?`<br>${lines}`:""}${S.assets.length&&!S.payments.length?`<br>⚠️ <b style="color:var(--gold)">Ainda sem dividendos registados — usa o 🕰️ na Carteira para acertar desde a compra.</b>`:""}`;
  document.getElementById("btnGoPay").style.display=(S.assets.length&&!S.payments.length)?"":"none"}
 
 function renderGoal(st){const g=S.goal>0?S.goal:1200,pct=Math.min(100,st.tY/g*100),miss=Math.max(0,g-st.tY);
@@ -430,21 +468,21 @@ function renderWallet(){const mode=document.getElementById("sortSel").value;
 
 function renderHist(){const fa=document.getElementById("filterAsset"),fy=document.getElementById("filterYear");
  const tickers=[...new Set([...S.payments.map(p=>p.assetTicker),...S.assets.map(a=>a.ticker)])];
- const prevFa=fa.value, prevFy=fy.value||String(new Date().getFullYear());
+ const prevFa=fa.value, prevFy=fy.dataset.init?fy.value:String(new Date().getFullYear());
  fa.innerHTML=`<option value="">Todos os ativos</option>`+tickers.map(t=>`<option ${t===prevFa?"selected":""}>${esc(t)}</option>`).join("");
- const years=[...new Set(S.payments.map(p=>p.date.slice(0,4)))].sort().reverse();
+ const years=[...new Set(S.payments.map(p=>(p.date||"").slice(0,4)))].sort().reverse();
  if(!years.includes(prevFy))years.unshift(prevFy);years.sort().reverse();
  fy.innerHTML=`<option value="">Todos os anos</option>`+years.map(y=>`<option ${y===prevFy?"selected":""}>${y}</option>`).join("");
- fa.value=prevFa;fy.value=prevFy;
- let list=[...S.payments].sort((a,b)=>b.date.localeCompare(a.date));
+ fa.value=prevFa;fy.value=prevFy;fy.dataset.init="1";
+ let list=[...S.payments].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
  if(fa.value)list=list.filter(p=>p.assetTicker===fa.value);
- if(fy.value)list=list.filter(p=>p.date.startsWith(fy.value));
- document.getElementById("histTag").textContent=list.length+" reg.";
+ if(fy.value)list=list.filter(p=>(p.date||"").startsWith(fy.value));
+ document.getElementById("histTag").textContent=list.length+" reg. · "+fmt(list.reduce((a,p)=>a+(+p.amount||0),0));
   document.getElementById("payList").innerHTML=list.length?list.map(p=>{const a=S.assets.find(x=>x.ticker===p.assetTicker);
   const elig=a?eligibleQty(a,p.date):null,tot=a?+a.qty||0:null;
   const warn=elig!==null&&tot!==null&&elig<tot?` · ⚠️ só ${elig}/${tot} detidas`:"";
-  return `<div class="pay"><div class="d">${p.date.slice(8,10)}/${p.date.slice(5,7)}</div>
-  <div><b>${fmt(p.amount)}</b><br><small>${esc(p.assetTicker)} · ${p.date}${warn}</small></div>
+  return `<div class="pay"><div class="d">${(p.date||"").slice(8,10)}/${(p.date||"").slice(5,7)}</div>
+  <div><b>${fmt(p.amount)}</b><br><small>${esc(p.assetTicker)} · ${p.exOnly?`ex ${p.date}`:`paga ${p.date}`}${!p.exOnly&&p.ex&&p.ex!==p.date?` · ex ${p.ex}`:""}${warn}</small></div>
   <div class="acts"><button class="del edit" onclick="editPay('${p.id}')" aria-label="Editar">✏️</button><button class="del" onclick="delPay('${p.id}')" aria-label="Apagar">✕</button></div></div>`}).join(""):`<div class="empty"><div class="big">🧾</div>Sem registos.<br>Regista o primeiro e ganha +50 XP!</div><div class="rowbtns"><button class="btn" onclick="loadDemo()">🎲 Ver exemplo</button></div>`;
  const ps=document.getElementById("pAsset");ps.innerHTML=S.assets.map(a=>`<option value="${a.id}">${esc(a.ticker)} — ${esc(a.name)}</option>`).join("")||"<option value=''>— cria um ativo primeiro —</option>";}
 
@@ -459,7 +497,9 @@ function missions(){const st=stats();const g=S.goal>0?S.goal:1200;return[
  {id:"m7",em:"🎯",t:"Traça o rumo",s:"Define a tua meta anual",ok:!!S.goalSet,rw:20}];}
 function renderQuests(){const ms=missions();document.getElementById("questList").innerHTML=ms.map(q=>{const cl=S.claimed.includes(q.id);
  return `<div class="q ${q.ok?"done":""}"><div class="em">${q.em}</div><div><b>${q.t}</b><small>${q.s} · +${q.rw} XP</small></div>
- <button ${(!q.ok||cl)?"disabled":""} onclick="claim('${q.id}',${q.rw})">${cl?"✅":"Recolher"}</button></div>`}).join("");}
+ <button ${(!q.ok||cl)?"disabled":""} onclick="claim('${q.id}',${q.rw})">${cl?"✅":"Recolher"}</button></div>`}).join("");
+ try{const raw=localStorage.getItem(KEY);const kb=raw?(raw.length/1024).toFixed(1)+" KB":"—";
+  document.getElementById("storeInfo").innerHTML=raw?`💾 Guardado neste dispositivo: <b>${S.assets.length} ativos</b> · <b>${S.payments.length} pagamentos</b> · ${kb}`:`⚠️ <b>Nada guardado</b> — o navegador recusou a gravação (modo privado?). Exporta regularmente!`}catch(e){}}
 window.claim=function(id,rw){if(S.claimed.includes(id))return;S.claimed.push(id);save();gainXP(rw);coinBurst(90);toast(`Missão completa! +${rw} XP 🎉`);renderQuests()};
 
 /* ============ TRADINGVIEW — referência sem registo ============ */
@@ -514,21 +554,46 @@ function inferFreq(ticker){const ds=S.payments.filter(p=>p.assetTicker===ticker&
  const gaps=[];for(let i=1;i<ds.length;i++)gaps.push((new Date(ds[i])-new Date(ds[i-1]))/86400000);
  gaps.sort((a,b)=>a-b);const med=gaps[Math.floor(gaps.length/2)];
  return med<45?12:med<100?4:med<200?2:1}
-window._tv=null;
+window._tv=null;window._draftHist=null;
+function trailing12m(hist,rates){if(!hist||!Array.isArray(hist.pays))return 0;
+ const cut=new Date();cut.setFullYear(cut.getFullYear()-1);const cutISO=cut.toISOString().slice(0,10),today=todayISO();
+ let s=0;for(const p of hist.pays){const d=p.pay||p.ex;if(!d||d>today||d<cutISO)continue;s+=eurOf(p.perShare,hist.ccy,rates)}
+ return Math.round(s*100)/100}
+function estDps(a){const d=+a.dpsAnnual||0;if(d>0)return d;
+ if(a&&a.hist)return trailing12m(a.hist,(S.fx&&S.fx.rates)||null);return 0}
+function draftQty(){return lotsTotals(lotDraft).qty}
+function refreshDpaPane(){const auto=document.getElementById("dpaAuto"),sched=document.getElementById("schedList");
+ const dh=window._draftHist,t=fTicker.value.trim().toUpperCase();
+ const qty=draftQty();
+ if(!dh||!dh.hist){auto.textContent="—";sched.innerHTML=`<p class="kbd">${t?"Toca em «Buscar dados do ticker» para ver quanto paga por trimestre.":"Escreve o ticker e toca em «Buscar dados»."}</p>`;return}
+ const ann=trailing12m(dh.hist,dh.rates);
+ auto.innerHTML=`${fmt(ann)}/ação/ano <small style="color:var(--muted)">(soma real dos últimos 12 meses · ${esc(dh.hist.source||"net")})</small>`;
+ const today=todayISO();
+ const fut=(dh.hist.pays||[]).filter(p=>(p.pay||p.ex)>=today).sort((a,b)=>(a.pay||a.ex).localeCompare(b.pay||b.ex)).slice(0,4);
+ const past=(dh.hist.pays||[]).filter(p=>(p.pay||p.ex)<today).sort((a,b)=>(b.pay||b.ex).localeCompare(a.pay||a.ex)).slice(0,4);
+ const line=p=>{const ps=eurOf(p.perShare,dh.hist.ccy,dh.rates);
+  const tot=qty>0?` → <b>${fmt(qty*ps)}</b> <small>(${qty} ações)</small>`:"";
+  const when=p.ex&&p.pay&&p.ex!==p.pay?`ex ${p.ex} → paga ${p.pay}`:`${p.pay||p.ex}`;
+  return `<div class="pay"><div class="d">${(p.pay||p.ex).slice(5,7)}/${(p.pay||p.ex).slice(0,4)}</div><div><b>${fmtSym(p.perShare,dh.hist.ccy)}</b>/ação<br><small>${when}${tot}</small></div></div>`};
+ sched.innerHTML=(fut.length?`<p class="kbd">Próximos anunciados:</p>`+fut.map(line).join(""):"")+
+  (past.length?`<p class="kbd" style="margin-top:6px">Últimos pagos (reais, variam por trimestre):</p>`+past.map(line).join(""):"")}
 document.getElementById("btnDivs").onclick=async()=>{const t=fTicker.value.trim().toUpperCase();const st=document.getElementById("divStatus");
  if(!t){toast("Escreve primeiro o ticker ⚠️");return}
- const btn=document.getElementById("btnDivs");btn.disabled=true;st.textContent="⏳ A buscar referência na TradingView…";
+ const btn=document.getElementById("btnDivs");btn.disabled=true;st.textContent="⏳ A buscar dados do ticker…";
  try{
-  const r=await tvLookup(t);
+  let ref=null,priceEur=0;
+  try{ref=await tvLookup(t)}catch(e){}
   let rates=null,fxNote="";
-  try{rates=await fetchFx()}catch(e){fxNote=" · ⚠️ sem câmbio (a mostrar moeda original)"}
-  const priceEur=eurOf(r.price,r.ccy,rates),dpsEur=r.dps>0?eurOf(r.dps,r.ccy,rates):0;
-  window._tv={ref:Object.assign({at:new Date().toISOString(),priceEur,dpsEur},r)};
-  if(dpsEur>0){fDPA.value=dpsEur;refreshDpsHint()}
-  if(!fName.value.trim()&&r.name)fName.value=r.name
-  st.innerHTML=dpsEur>0?`✅ <b>${esc(r.sym)}</b> · ${fmtSym(r.price,r.ccy)} (€ ${priceEur.toFixed(2)}) · yield ${r.yield.toFixed(2)}% → <b>DPS ~${fmt(dpsEur)}/ano</b> · TradingView${fxNote}`:`✅ <b>${esc(r.sym)}</b> · ${fmtSym(r.price,r.ccy)} (€ ${priceEur.toFixed(2)}) · <b>yield não detetado</b> (acumulação ou dado em falta) · TradingView${fxNote}`;
-  ching();
- }catch(e){window._tv=null;st.textContent="❌ "+e.message+" — verifica o ticker."}
+  try{rates=await fetchFx()}catch(e){fxNote=" · ⚠️ sem câmbio"}
+  const hist=await realHistory(t);
+  if(ref&&ref.price>0)priceEur=eurOf(ref.price,ref.ccy,rates);
+  window._tv=ref?{ref:Object.assign({at:new Date().toISOString(),priceEur,dpsEur:ref.dps>0?eurOf(ref.dps,ref.ccy,rates):0},ref)}:null;
+  window._draftHist={hist,rates};
+  if(ref&&!fName.value.trim()&&ref.name)fName.value=ref.name;
+  const ann=trailing12m(hist,rates);
+  st.innerHTML=`✅ <b>${esc(t)}</b> · ${ref&&ref.price>0?fmtSym(ref.price,ref.ccy)+" (€ "+priceEur.toFixed(2)+") · ":""}${hist.pays.length} pagamentos reais (${esc(hist.source)})${fxNote}`;
+  refreshDpaPane();ching();
+ }catch(e){window._draftHist=null;refreshDpaPane();st.textContent="❌ "+e.message+" — verifica o ticker."}
  btn.disabled=false};
 window.showDist=function(id){const a=S.assets.find(x=>x.id===id);if(!a){return}
  const refs=Array.isArray(a.refs)?a.refs:[];
@@ -724,7 +789,7 @@ document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeAll);
 document.querySelectorAll(".scrim").forEach(s=>s.addEventListener("click",e=>{if(e.target===s)closeAll()}));
 window.editAsset=function(id){const a=S.assets.find(x=>x.id===id);if(!a)return;editingAsset=id;
  document.getElementById("assetTitle").textContent="✏️ Editar ativo";
-  fTicker.value=a.ticker;fName.value=a.name;fDPA.value=(+a.dpsAnnual||0);document.getElementById("divStatus").textContent="";window._tv=null;lotDraft=(Array.isArray(a.lots)&&a.lots.length?a.lots:[{id:uid(),date:todayISO(),qty:"",price:""}]).map(l=>({id:l.id||uid(),date:l.date||"",qty:l.qty??"",price:l.price??""}));renderLotRows();refreshDpsHint();openM("mAsset")};
+  fTicker.value=a.ticker;fName.value=a.name;document.getElementById("divStatus").textContent="";window._tv=null;window._draftHist=a.hist?{hist:a.hist,rates:(S.fx&&S.fx.rates)||null}:null;lotDraft=(Array.isArray(a.lots)&&a.lots.length?a.lots:[{id:uid(),date:todayISO(),qty:"",price:""}]).map(l=>({id:l.id||uid(),date:l.date||"",qty:l.qty??"",price:l.price??""}));renderLotRows();refreshDpaPane();openM("mAsset")};
 window.delAsset=function(id){if(!confirm("Remover ativo? (mantém o histórico)"))return;S.assets=S.assets.filter(x=>x.id!==id);save();renderAll();toast("Ativo removido")};
 window.quickPay=function(id){const a=S.assets.find(x=>x.id===id);if(!a)return;newPayForm();document.getElementById("pAsset").value=id;autoAmount();document.getElementById("pDate").value=todayISO();openM("mPay")};
 window.delPay=function(id){if(!confirm("Apagar registo?"))return;S.payments=S.payments.filter(p=>p.id!==id);save();renderAll();toast("Registo apagado")};
@@ -732,7 +797,11 @@ window.editPay=function(id){const p=S.payments.find(x=>x.id===id);if(!p)return;e
  document.getElementById("payTitle").textContent="✏️ Editar dividendo";document.getElementById("savePay").textContent="Guardar alterações";
  const a=S.assets.find(x=>x.ticker===p.assetTicker);if(a)document.getElementById("pAsset").value=a.id;
  document.getElementById("pDate").value=p.date;document.getElementById("pAmount").value=p.amount;openM("mPay")};
-const fTicker=document.getElementById("fTicker"),fName=document.getElementById("fName"),fDPA=document.getElementById("fDPA");
+const fTicker=document.getElementById("fTicker"),fName=document.getElementById("fName");
+function attachHist(a){const dh=window._draftHist;window._draftHist=null;if(!dh||!dh.hist)return;
+ a.hist={source:dh.hist.source,ccy:dh.hist.ccy,at:new Date().toISOString(),pays:(dh.hist.pays||[]).slice(-150),exOnly:!!dh.hist.exOnly};
+ const ann=trailing12m(a.hist,dh.rates||((S.fx&&S.fx.rates)||null));
+ if(ann>0)a.dpsAnnual=ann}
 let lotDraft=[];
 function lotsTotals(lots){let qty=0,cost=0;
  for(const l of lots||[]){const q=num(l.qty),p=num(l.price);if(q>0&&p>=0){qty+=q;cost+=q*p}}
@@ -762,22 +831,25 @@ document.getElementById("lotRows").addEventListener("input",e=>{const i=e.target
 document.getElementById("lotRows").addEventListener("click",e=>{const b=e.target.closest?e.target.closest("[data-del]"):null;if(!b)return;
  lotDraft.splice(+b.dataset.del,1);renderLotRows()});
 document.getElementById("btnAddLot").onclick=()=>{lotDraft.push({id:uid(),date:todayISO(),qty:"",price:""});renderLotRows()};
-function refreshDpsHint(){const a=num(fDPA.value),fq=inferFreq(fTicker.value.trim().toUpperCase());
- document.getElementById("dpsHint").textContent=a>0&&fq?`≈ ${fmt(a/fq)} por pagamento (${freqName(fq)} — detetado pelos teus recebimentos).`:"Soma de todos os pagamentos do ano por ação. Mesmo que variem por trimestre, usa o total anual."}
-fDPA.addEventListener("input",refreshDpsHint);
-fTicker.addEventListener("change",()=>{refreshDpsHint();const t=fTicker.value.trim();if(!t||document.getElementById("btnDivs").disabled)return;
- if(lotsTotals(lotDraft).qty<=0&&!num(fDPA.value))document.getElementById("btnDivs").click()});
-document.getElementById("btnAddAsset").onclick=()=>{editingAsset=null;window._tv=null;document.getElementById("assetTitle").textContent="＋ Novo ativo";fTicker.value="";fName.value="";fDPA.value="";document.getElementById("divStatus").textContent="";lotDraft=[{id:uid(),date:todayISO(),qty:"",price:""}];renderLotRows();refreshDpsHint();openM("mAsset")};
-document.getElementById("saveAsset").onclick=()=>{const t=fTicker.value.trim().toUpperCase();if(!t){toast("Escreve o ticker (ex: EDP) ⚠️");return}
- const ann=Math.round(num(fDPA.value)*100)/100;
+fTicker.addEventListener("change",()=>{refreshDpaPane();const t=fTicker.value.trim();if(!t||document.getElementById("btnDivs").disabled)return;
+ if(lotsTotals(lotDraft).qty<=0&&!window._draftHist)document.getElementById("btnDivs").click()});
+document.getElementById("btnAddAsset").onclick=()=>{editingAsset=null;window._tv=null;window._draftHist=null;document.getElementById("assetTitle").textContent="＋ Novo ativo";fTicker.value="";fName.value="";document.getElementById("divStatus").textContent="";lotDraft=[{id:uid(),date:todayISO(),qty:"",price:""}];renderLotRows();refreshDpaPane();openM("mAsset")};
+document.getElementById("saveAsset").onclick=async()=>{const t=fTicker.value.trim().toUpperCase();if(!t){toast("Escreve o ticker (ex: EDP) ⚠️");return}
  const lt=lotsTotals(lotDraft);
  if(!(lt.qty>0)){toast("Adiciona pelo menos uma compra com quantidade ⚠️");return}
- let savedId=null,isNew=false;
- if(editingAsset){const a=S.assets.find(x=>x.id===editingAsset);Object.assign(a,{ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:ann,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))});attachTv(a);savedId=a.id;toast("Ativo atualizado ✅")}
- else{const a={id:uid(),ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:ann,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))};attachTv(a);S.assets.push(a);savedId=a.id;isNew=true;gainXP(20);coinBurst(50);ching();toast(`Ativo ${t} criado! +20 XP 🎮`)}
- save();closeAll();renderAll();
- if(isNew&&savedId){const na=S.assets.find(x=>x.id===savedId);
-  if(na&&(+na.dpsAnnual>0)&&estimateMissing(na,defaultCatchFreq(na)).length>0){openCatchUp(savedId);return}}};
+ const btn=document.getElementById("saveAsset");btn.disabled=true;
+ try{
+  if(!window._draftHist){try{const hist=await realHistory(t);
+    let rates=null;try{rates=await fetchFx()}catch(e){}
+    window._draftHist={hist,rates}}catch(e){}}
+  let savedId=null,isNew=false;
+  if(editingAsset){const a=S.assets.find(x=>x.id===editingAsset);Object.assign(a,{ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))});attachTv(a);attachHist(a);savedId=a.id;toast("Ativo atualizado ✅")}
+  else{const a={id:uid(),ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:0,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))};attachTv(a);attachHist(a);S.assets.push(a);savedId=a.id;isNew=true;gainXP(20);coinBurst(50);ching();toast(`Ativo ${t} criado! +20 XP 🎮`)}
+  save();closeAll();renderAll();
+  if(savedId){const na=S.assets.find(x=>x.id===savedId);
+   if(na&&na.hist&&buildRealRows(na,na.hist,(S.fx&&S.fx.rates)||null).length>0){openCatchUp(savedId);return}
+   if(na&&isNew&&!na.hist)toast("⚠️ Sem dados da net para este ticker — regista manualmente em ➕")}
+ }finally{btn.disabled=false}};
 function attachTv(a){const tv=window._tv;window._tv=null;if(!tv||!tv.ref)return;
  a.ref=tv.ref;if(!Array.isArray(a.refs))a.refs=[];a.refs.push({at:tv.ref.at,price:tv.ref.price,yield:tv.ref.yield,dps:tv.ref.dps,ccy:tv.ref.ccy,priceEur:tv.ref.priceEur,dpsEur:tv.ref.dpsEur});if(a.refs.length>24)a.refs=a.refs.slice(-24)}
 function syncPayForm(){renderHist();document.getElementById("pDate").value=todayISO();autoAmount()}
@@ -808,7 +880,9 @@ function scheduleDates(freq,fromISO,toISO){const out=[];const f=+freq||4;
  for(let yy=y;yy<=yEnd;yy++)for(const m of months){const d=`${yy}-${String(m).padStart(2,"0")}-15`;
   if(d>=fromISO&&d<=toISO)out.push(d)}
  return out}
-function estimateMissing(a,freq){const dps=+a.dpsAnnual||0;if(!(dps>0))return[];
+function estimateMissing(a,freq){let dps=+a.dpsAnnual||0;
+ if(!(dps>0)&&a.hist)dps=trailing12m(a.hist,(S.fx&&S.fx.rates)||null);
+ if(!(dps>0))return[];
  const first=firstBuyDate(a);if(!first)return[];
  const f=+freq||4;
  const existing=new Set(S.payments.filter(p=>p.assetTicker===a.ticker&&/^\d{4}-\d{2}-\d{2}$/.test(p.date||"")).map(p=>p.date.slice(0,7)));
@@ -887,7 +961,7 @@ function buildRealRows(a,hist,rates){const today=todayISO();
   if(existing.has(String(p.pay).slice(0,7)))continue;
   const q=eligibleQty(a,p.ex||p.pay);if(!(q>0))continue;
   const ps=eurOf(p.perShare,hist.ccy,rates);const amt=Math.round(q*ps*100)/100;if(!(amt>0))continue;
-  rows.push({date:p.pay,qty:q,perShare:ps,amount:amt,keep:true,real:true})}
+  rows.push({date:p.pay,ex:p.ex||p.pay,qty:q,perShare:ps,amount:amt,keep:true,real:true})}
  return rows}
 function realPerShareAvg(a,hist,rates){const byY={};
  for(const p of hist.pays){if(p.pay>todayISO())continue;
@@ -896,7 +970,6 @@ function realPerShareAvg(a,hist,rates){const byY={};
  const ys=Object.values(byY);return ys.length?Math.round(ys.reduce((s,v)=>s+v,0)/ys.length*100)/100:0}
 let catchAssetId=null,catchRows=[],catchMode="est",catchReal=null,catchToken=0;
 function openCatchUp(id){const a=S.assets.find(x=>x.id===id);if(!a)return;
- if(!( +a.dpsAnnual>0)){toast("Preenche primeiro o dividendo anual estimado ⚠️");window.editAsset(id);return}
  catchAssetId=id;catchMode="est";catchReal=null;
  document.getElementById("catchFreq").value=String(defaultCatchFreq(a));
  document.getElementById("realStatus").textContent="";
@@ -933,10 +1006,10 @@ function renderCatch(){const a=S.assets.find(x=>x.id===catchAssetId);const box=d
   const f=+document.getElementById("catchFreq").value||4;
   catchRows=estimateMissing(a,f);
   document.getElementById("catchTitle").textContent=`🕰️ ${a.ticker} — desde ${firstBuyDate(a)||"?"}`;
-  document.getElementById("catchIntro").innerHTML=catchRows.length?`Compraste em <b>${firstBuyDate(a)}</b> e a estimativa é <b>${fmt(+a.dpsAnnual)}/ação/ano</b>. Faltam <b>${catchRows.length} pagamentos</b> até hoje — revê e regista:`:`Nada em falta ✅ — ou já registaste tudo, ou a estimativa anual é 0.`;
+  document.getElementById("catchIntro").innerHTML=catchRows.length?`Compraste em <b>${firstBuyDate(a)||"?"}</b> e o cálculo automático é <b>${fmt(estDps(a))}/ação/ano</b>. Faltam <b>${catchRows.length} pagamentos</b> até hoje — revê e regista:`:`Nada em falta ✅ — ou já registaste tudo, ou ainda sem dados (toca em 🌐 Buscar histórico real).`;
  }
  document.getElementById("catchTotal").value=catchRows.length?fmt(catchRows.reduce((s,r)=>s+(r.keep?+r.amount||0:0),0)):"";
- box.innerHTML=catchRows.map((r,i)=>`<div class="orow"><div class="oh"><input type="checkbox" data-i="${i}" class="ck" ${r.keep?"checked":""}><span>${r.date}</span><span class="kbd">${r.qty} ações × ${fmt(r.perShare)}</span></div>
+ box.innerHTML=catchRows.map((r,i)=>`<div class="orow"><div class="oh"><input type="checkbox" data-i="${i}" class="ck" ${r.keep?"checked":""}><span>${r.date}</span><span class="kbd">${r.qty} ações × ${fmt(r.perShare)}${r.ex&&r.ex!==r.date?` · ex ${r.ex}`:""}</span></div>
   <div class="og"><div><label>Data</label><input type="date" data-i="${i}" class="cd" value="${r.date}"></div>
   <div><label>Valor €</label><input type="number" inputmode="decimal" data-i="${i}" class="ca" value="${r.amount}"></div></div></div>`).join("");
  const tot=catchRows.filter(r=>r.keep).reduce((s,r)=>s+(+r.amount||0),0);
@@ -952,7 +1025,7 @@ document.getElementById("catchRows").addEventListener("input",e=>{const i=+e.tar
 document.getElementById("catchImport").onclick=()=>{const a=S.assets.find(x=>x.id===catchAssetId);
  const sel=catchRows.filter(r=>r.keep&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&num(r.amount)>0);
  if(!a||!sel.length){toast("Seleciona pelo menos 1 pagamento ⚠️");return}
- for(const r of sel)S.payments.push({id:uid(),assetTicker:a.ticker,date:r.date,amount:Math.round(num(r.amount)*100)/100});
+ for(const r of sel)S.payments.push({id:uid(),assetTicker:a.ticker,date:r.date,ex:r.ex||"",exOnly:!!(catchReal&&catchReal.hist&&catchReal.hist.exOnly),amount:Math.round(num(r.amount)*100)/100});
  save();closeAll();renderAll();switchView("v-hist");
  gainXP(10*sel.length);coinBurst(80);ching();
  toast(sel.length===1?`Registado ${fmt(sel[0].amount)} de ${a.ticker}!`:`Registados ${sel.length} dividendos (${fmt(sel.reduce((s,r)=>s+num(r.amount),0))})!`);
@@ -994,7 +1067,8 @@ document.getElementById("btnGoPay").onclick=()=>document.getElementById("fab").c
 /* nav */
 function switchView(id){document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));document.getElementById(id).classList.add("on");
  document.querySelectorAll(".nav button[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===id));
- if(id==="v-home"){renderHome()}window.scrollTo({top:0,behavior:"smooth"})}
+ if(id==="v-home")renderHome();else if(id==="v-wallet")renderWallet();else if(id==="v-hist")renderHist();else if(id==="v-quests")renderQuests();
+ window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll(".nav button[data-v]").forEach(b=>b.onclick=()=>switchView(b.dataset.v));
 
 /* tilt 3D nos cards (toque/rato) */
