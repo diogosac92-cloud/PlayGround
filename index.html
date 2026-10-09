@@ -266,6 +266,19 @@ input:focus,select:focus{border-color:var(--gold)}
   <div class="rowbtns"><button class="btn ghost" data-close>Cancelar</button><button class="btn primary" id="savePay">Guardar (+50 XP)</button></div>
 </div></div>
 
+<!-- MODAL CATCH-UP -->
+<div class="scrim" id="mCatch"><div class="sheet">
+  <h2 id="catchTitle">🕰️ Dividendos por registar</h2>
+  <div class="rowbtns"><button class="btn" id="btnRealHist">🌐 Buscar histórico real</button></div>
+  <div id="realStatus" class="kbd" style="margin-top:8px;line-height:1.5"></div>
+  <div id="catchIntro" class="kbd" style="line-height:1.6;margin-top:8px"></div>
+  <div class="frow"><div><label>Ritmo (estimativa)</label><select id="catchFreq"><option value="12">Mensal (12x/ano)</option><option value="4" selected>Trimestral (4x/ano)</option><option value="2">Semestral (2x/ano)</option><option value="1">Anual (1x/ano)</option></select></div>
+  <div><label>Estimativa total</label><input id="catchTotal" disabled style="opacity:.6"></div></div>
+  <p class="kbd">Datas e valores são <b>estimativas</b> (dia 15, dividendo anual ÷ ritmo). Ajusta à corretora antes de registar — só entra o que selecionares.</p>
+  <div id="catchRows"></div>
+  <div class="rowbtns" style="margin-top:12px"><button class="btn ghost" data-close>Agora não</button><button class="btn primary" id="catchImport">Registar selecionados</button></div>
+</div></div>
+
 <!-- MODAL META -->
 <div class="scrim" id="mGoal"><div class="sheet">
   <h2>🎯 Meta anual de dividendos</h2>
@@ -409,7 +422,7 @@ function renderWallet(){const mode=document.getElementById("sortSel").value;
   return `<div class="asset tilt"><div class="ticker" style="background:linear-gradient(135deg,${c},#fff8)">${esc(a.ticker.slice(0,4))}</div>
   <div class="asset-info"><b>${esc(a.ticker)} · ${esc(a.name)}</b><small>${a.qty} ações · est. ${fmt(dps)}/ano por ação${fq?` · ~${fmt(dps/fq)}/pag. (${freqName(fq)})`:""}${Array.isArray(a.lots)&&a.lots.length>1?` · 🧾 ${a.lots.length} compras`:""}</small>
   <small>Yield est. ${y.toFixed(2)}% · recebido ${yy}: <b>${fmt(ytd)}</b> de ~${fmt(ann)} est.</small>${a.ref?`<small>📊 ref DPS ~${fmt(a.ref.dpsEur||a.ref.dps)}/ano · yield ${(+a.ref.yield||0).toFixed(2)}%</small>`:""}
-  <div class="rowbtns"><button class="btn" onclick="quickPay('${a.id}')">💸 Receber</button>${a.ref?`<button class="btn ghost" onclick="showDist('${a.id}')">📊</button>`:""}<button class="btn ghost" onclick="editAsset('${a.id}')">✏️</button><button class="btn danger" onclick="delAsset('${a.id}')">🗑️</button></div></div>
+  <div class="rowbtns"><button class="btn" onclick="quickPay('${a.id}')">💸 Receber</button><button class="btn ghost" onclick="openCatchUp('${a.id}')" aria-label="Por registar">🕰️</button>${a.ref?`<button class="btn ghost" onclick="showDist('${a.id}')">📊</button>`:""}<button class="btn ghost" onclick="editAsset('${a.id}')">✏️</button><button class="btn danger" onclick="delAsset('${a.id}')">🗑️</button></div></div>
   <div class="asset-val"><b>${fmt(ann)}</b><small>est./ano</small></div></div>`}).join("");
  const st=stats();const g=S.goal>0?S.goal:1200;const toGo=Math.max(0,st.proj-st.tY);
  document.getElementById("projection").innerHTML=`💰 Projeção anual (estimativa): <b style="color:var(--gold)">${fmt(st.proj)}</b> (~${fmt(st.proj/12)}/mês)<br>✅ Recebido em ${st.y}: <b>${fmt(st.tY)}</b> · a receber ~<b>${fmt(toGo)}</b><br>🏦 Capital investido: <b>${fmt(st.cost)}</b> · Yield est.: <b>${st.yld.toFixed(2)}%</b><br>🎯 Meta anual (${fmt(g)}): ${st.tY>=g?"✅ <b>Conquistada!</b> És uma lenda!":`recebeste ${fmt(st.tY)} — faltam <b>${fmt(g-st.tY)}</b> (projeção: ${st.proj>=g?"dentro da meta ✅":"abaixo da meta ⚠️"})`}`;
@@ -759,9 +772,12 @@ document.getElementById("saveAsset").onclick=()=>{const t=fTicker.value.trim().t
  const ann=Math.round(num(fDPA.value)*100)/100;
  const lt=lotsTotals(lotDraft);
  if(!(lt.qty>0)){toast("Adiciona pelo menos uma compra com quantidade ⚠️");return}
- if(editingAsset){const a=S.assets.find(x=>x.id===editingAsset);Object.assign(a,{ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:ann,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))});attachTv(a);toast("Ativo atualizado ✅")}
- else{const a={id:uid(),ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:ann,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))};attachTv(a);S.assets.push(a);gainXP(20);coinBurst(50);ching();toast(`Ativo ${t} criado! +20 XP 🎮`)}
- save();closeAll();renderAll()};
+ let savedId=null,isNew=false;
+ if(editingAsset){const a=S.assets.find(x=>x.id===editingAsset);Object.assign(a,{ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:ann,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))});attachTv(a);savedId=a.id;toast("Ativo atualizado ✅")}
+ else{const a={id:uid(),ticker:t,name:fName.value.trim()||t,qty:lt.qty,avgPrice:lt.avg,dpsAnnual:ann,lots:lotDraft.map(l=>({id:l.id||uid(),date:l.date||"",qty:num(l.qty),price:num(l.price)}))};attachTv(a);S.assets.push(a);savedId=a.id;isNew=true;gainXP(20);coinBurst(50);ching();toast(`Ativo ${t} criado! +20 XP 🎮`)}
+ save();closeAll();renderAll();
+ if(isNew&&savedId){const na=S.assets.find(x=>x.id===savedId);
+  if(na&&(+na.dpsAnnual>0)&&estimateMissing(na,defaultCatchFreq(na)).length>0){openCatchUp(savedId);return}}};
 function attachTv(a){const tv=window._tv;window._tv=null;if(!tv||!tv.ref)return;
  a.ref=tv.ref;if(!Array.isArray(a.refs))a.refs=[];a.refs.push({at:tv.ref.at,price:tv.ref.price,yield:tv.ref.yield,dps:tv.ref.dps,ccy:tv.ref.ccy,priceEur:tv.ref.priceEur,dpsEur:tv.ref.dpsEur});if(a.refs.length>24)a.refs=a.refs.slice(-24)}
 function syncPayForm(){renderHist();document.getElementById("pDate").value=todayISO();autoAmount()}
@@ -782,6 +798,165 @@ function refreshPayHint(){const box=document.getElementById("payHint");if(!box)r
  const fq=inferFreq(a.ticker);
  const per=fq&&+a.dpsAnnual>0?(+a.dpsAnnual)/fq:0;
  box.textContent=`Na data ${dt}: ${elig} de ${tot} ações já detidas`+(per>0?` → esperado ~${fmt(elig*per)}`:"")+(elig<=0?" ⚠️ (compras posteriores a esta data?)":elig<tot?" ⚠️ (parte comprada depois)":" ✅")};
+
+/* ============ CATCH-UP — dividendos desde a compra ============ */
+function firstBuyDate(a){const ds=(Array.isArray(a.lots)?a.lots:[]).map(l=>l.date).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d||"")).sort();
+ return ds.length?ds[0]:null}
+function scheduleDates(freq,fromISO,toISO){const out=[];const f=+freq||4;
+ const months=f===12?[1,2,3,4,5,6,7,8,9,10,11,12]:f===2?[6,12]:f===1?[6]:[3,6,9,12];
+ let y=+fromISO.slice(0,4),yEnd=+toISO.slice(0,4);
+ for(let yy=y;yy<=yEnd;yy++)for(const m of months){const d=`${yy}-${String(m).padStart(2,"0")}-15`;
+  if(d>=fromISO&&d<=toISO)out.push(d)}
+ return out}
+function estimateMissing(a,freq){const dps=+a.dpsAnnual||0;if(!(dps>0))return[];
+ const first=firstBuyDate(a);if(!first)return[];
+ const f=+freq||4;
+ const existing=new Set(S.payments.filter(p=>p.assetTicker===a.ticker&&/^\d{4}-\d{2}-\d{2}$/.test(p.date||"")).map(p=>p.date.slice(0,7)));
+ const rows=[];
+ for(const d of scheduleDates(f,first,todayISO())){
+  if(existing.has(d.slice(0,7)))continue;
+  const q=eligibleQty(a,d);if(!(q>0))continue;
+  const amt=Math.round(q*dps/f*100)/100;if(!(amt>0))continue;
+  rows.push({date:d,qty:q,perShare:Math.round(dps/f*100)/100,amount:amt,keep:true})}
+ return rows}
+function defaultCatchFreq(a){return inferFreq(a.ticker)||4}
+function parseAmt(s){const n=parseFloat(String(s||"").replace(/[^0-9.]/g,""));return isNaN(n)?0:n}
+function parseSA(j){const d=j&&j.data;if(!d||!Array.isArray(d.history))throw new Error("sem histórico");
+ const pays=d.history.map(h=>({ex:h.dt||"",pay:(h.pay&&h.pay!=="n/a")?h.pay:(h.dt||""),perShare:parseAmt(h.amt)}))
+  .filter(p=>/^\d{4}-\d{2}-\d{2}$/.test(p.ex)&&p.perShare>0);
+ if(!pays.length)throw new Error("sem histórico");
+ return{source:"StockAnalysis",ccy:"USD",freq:(d.infoTable&&d.infoTable.frequency)||"",pays}}
+async function saHistory(ticker){const base=String(ticker||"").trim().toUpperCase().replace(/-/g,".").split(".")[0];
+ if(!base)throw new Error("símbolo vazio");
+ const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+ let res;try{res=await fetch("https://stockanalysis.com/api/symbol/s/"+encodeURIComponent(base)+"/dividend",{signal:ctl.signal})}catch(e){clearTimeout(to);throw new Error("sem ligação")}
+ clearTimeout(to);if(!res.ok)throw new Error("HTTP "+res.status);
+ return parseSA(await res.json())}
+function parseBrapi(j){const r=j&&j.results&&j.results[0];
+ const cd=r&&r.dividendsData&&r.dividendsData.cashDividends;
+ if(!Array.isArray(cd)||!cd.length)throw new Error("sem histórico");
+ const by={};
+ for(const c of cd){const pay=String(c.paymentDate||"").slice(0,10),ex=String(c.exDate||c.lastDatePrior||"").slice(0,10);
+  const rate=+c.rate||0;if(!(rate>0))continue;
+  const key=/^\d{4}-\d{2}-\d{2}$/.test(pay)?pay:(/^\d{4}-\d{2}-\d{2}$/.test(ex)?ex:"");if(!key)continue;
+  if(!by[key])by[key]={pay:pay||ex,ex:ex||pay,perShare:0,labels:[]};
+  by[key].perShare+=rate;if(c.label&&!by[key].labels.includes(c.label))by[key].labels.push(c.label)}
+ const pays=Object.values(by).map(p=>({pay:p.pay,ex:p.ex,perShare:Math.round(p.perShare*10000)/10000,labels:p.labels}));
+ if(!pays.length)throw new Error("sem histórico");
+ return{source:"brapi (B3)",ccy:"BRL",freq:"",pays}}
+async function brapiHistory(ticker){const sym=String(ticker||"").trim().toUpperCase();if(!sym)throw new Error("símbolo vazio");
+ const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+ let res;try{res=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(sym)+"?dividends=true&range=10y&interval=1mo",{signal:ctl.signal})}catch(e){clearTimeout(to);throw new Error("sem ligação")}
+ clearTimeout(to);if(!res.ok)throw new Error("HTTP "+res.status);
+ return parseBrapi(await res.json())}
+async function realHistory(ticker){const t=String(ticker||"").trim().toUpperCase();
+ if(/[0-9]$/.test(t)){try{return await brapiHistory(t)}catch(e){}}
+ else{try{return await saHistory(t)}catch(e){}}
+ return await yahooHistory(t)}
+function yahooCandidates(t){t=String(t||"").trim().toUpperCase();if(!t)return[];
+ if(t.indexOf(":")>0)t=t.split(":").pop();
+ const m=t.match(/^(.+)\.(L|LS|SA|DE|MI|PA|AS)$/);
+ if(m&&!TV_ALIAS[m[1]])return[t];
+ if(TV_ALIAS[t])return[t+".DE",t+".L"];
+ const pt={EDP:1,EDPR:1,JMT:1,NOS:1,GALP:1,BCP:1,CTT:1,SON:1,SEM:1,ALTR:1,NVG:1,COR:1,EGL:1};
+ if(pt[t])return[t+".LS"];
+ if(/[0-9]$/.test(t))return[t+".SA"];
+ if(TV_ETF.test(t))return[t+".DE",t+".L"];
+ return[t]}
+function parseYahooDiv(j){const r=j&&j.chart&&j.chart.result&&j.chart.result[0];if(!r||!r.meta)throw new Error("sem dados");
+ const ev=(r.events&&r.events.dividends)||{};
+ const pays=Object.values(ev).map(d=>({t:+d.date||0,perShare:+d.amount||0})).filter(d=>d.t>0&&d.perShare>0)
+  .sort((a,b)=>a.t-b.t).map(d=>{const iso=new Date(d.t*1000).toISOString().slice(0,10);
+   return{ex:iso,pay:iso,perShare:Math.round(d.perShare*10000)/10000}});
+ if(!pays.length)throw new Error("sem dividendos");
+ return{source:"Yahoo Finance",ccy:r.meta.currency||"",freq:"",exOnly:true,pays}}
+async function yahooHistory(ticker){const cands=yahooCandidates(ticker);let last=null;
+ for(const c of cands.slice(0,3)){try{
+   const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
+   let res;try{res=await fetch("https://api.cors.lol/?url="+encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(c)+"?interval=1mo&range=10y&events=div"),{signal:ctl.signal})}catch(e){clearTimeout(to);throw new Error("sem ligação")}
+   clearTimeout(to);
+   if(res.status===429)throw new Error("limite temporário do serviço — tenta daqui a 1 min");
+   if(!res.ok)throw new Error("HTTP "+res.status);
+   const h=parseYahooDiv(await res.json());h.sym=c;return h;
+  }catch(e){last=e;if(/limite temporário/.test(e.message))break}}
+ throw last||new Error("sem histórico")}
+function buildRealRows(a,hist,rates){const today=todayISO();
+ const existing=new Set(S.payments.filter(p=>p.assetTicker===a.ticker&&/^\d{4}-\d{2}-\d{2}$/.test(p.date||"")).map(p=>p.date.slice(0,7)));
+ const rows=[];
+ for(const p of hist.pays){if(p.pay>today)continue;
+  if(existing.has(String(p.pay).slice(0,7)))continue;
+  const q=eligibleQty(a,p.ex||p.pay);if(!(q>0))continue;
+  const ps=eurOf(p.perShare,hist.ccy,rates);const amt=Math.round(q*ps*100)/100;if(!(amt>0))continue;
+  rows.push({date:p.pay,qty:q,perShare:ps,amount:amt,keep:true,real:true})}
+ return rows}
+function realPerShareAvg(a,hist,rates){const byY={};
+ for(const p of hist.pays){if(p.pay>todayISO())continue;
+  const y=String(p.pay).slice(0,4);if(!/^\d{4}$/.test(y))continue;
+  byY[y]=(byY[y]||0)+eurOf(p.perShare,hist.ccy,rates)}
+ const ys=Object.values(byY);return ys.length?Math.round(ys.reduce((s,v)=>s+v,0)/ys.length*100)/100:0}
+let catchAssetId=null,catchRows=[],catchMode="est",catchReal=null,catchToken=0;
+function openCatchUp(id){const a=S.assets.find(x=>x.id===id);if(!a)return;
+ if(!( +a.dpsAnnual>0)){toast("Preenche primeiro o dividendo anual estimado ⚠️");window.editAsset(id);return}
+ catchAssetId=id;catchMode="est";catchReal=null;
+ document.getElementById("catchFreq").value=String(defaultCatchFreq(a));
+ document.getElementById("realStatus").textContent="";
+ renderCatch();
+ openM("mCatch");
+ loadCatchReal()}
+window.openCatchUp=openCatchUp;
+async function loadCatchReal(){const tk=++catchToken;const a=S.assets.find(x=>x.id===catchAssetId);if(!a)return;
+ const st=document.getElementById("realStatus");st.textContent="⏳ A buscar histórico real…";
+ try{
+  const hist=await realHistory(a.ticker);if(tk!==catchToken)return;
+  let rates=null;try{rates=await fetchFx()}catch(e){}
+  const rows=buildRealRows(a,hist,rates);if(tk!==catchToken)return;
+  if(!rows.length){st.textContent=`ℹ️ Histórico real encontrado (${hist.source}) mas nada em falta — usa a estimativa abaixo.`;return}
+  catchReal={hist,rates,avg:realPerShareAvg(a,hist,rates)};catchMode="real";renderCatch();
+  st.innerHTML=`✅ <b>Histórico real (${hist.source})</b> — revê e regista. <button class="btn" style="min-height:40px;margin-top:6px" onclick="applyRealAvg()">Usar média ${fmt(catchReal.avg)}/ano como estimativa</button>`;
+  ching();
+ }catch(e){if(tk!==catchToken)return;st.textContent="ℹ️ "+e.message+" — a usar estimativa."}}
+window.applyRealAvg=function(){const a=S.assets.find(x=>x.id===catchAssetId);
+ if(!a||!catchReal||!(catchReal.avg>0))return;
+ a.dpsAnnual=catchReal.avg;save();renderAll();renderCatch();
+ document.getElementById("realStatus").innerHTML=`✅ Estimativa anual atualizada para <b>${fmt(catchReal.avg)}</b>.`;
+ toast("Estimativa anual atualizada ✅")};
+document.getElementById("btnRealHist").onclick=()=>{catchMode="est";catchReal=null;renderCatch();loadCatchReal()};
+function renderCatch(){const a=S.assets.find(x=>x.id===catchAssetId);const box=document.getElementById("catchRows");
+ if(!a){box.innerHTML="";return}
+ if(catchMode==="real"&&catchReal&&catchReal.hist){catchRows=buildRealRows(a,catchReal.hist,catchReal.rates||null);
+  if(!catchRows.length)catchMode="est";
+ }
+ if(catchMode==="real"&&catchReal&&catchReal.hist&&catchRows.length){
+  document.getElementById("catchTitle").textContent=`🕰️ ${a.ticker} — desde ${firstBuyDate(a)||"?"}`;
+  document.getElementById("catchIntro").innerHTML=`🌐 <b>Histórico real (${catchReal.hist.source})</b> · média ${fmt(catchReal.avg)}/ação/ano · <b>${catchRows.length} em falta</b>${catchReal.hist.exOnly?" · <i>datas ex-dividendo (pagamento dias depois)</i>":""} — revê e regista:`;
+ }else{catchMode="est";
+  const f=+document.getElementById("catchFreq").value||4;
+  catchRows=estimateMissing(a,f);
+  document.getElementById("catchTitle").textContent=`🕰️ ${a.ticker} — desde ${firstBuyDate(a)||"?"}`;
+  document.getElementById("catchIntro").innerHTML=catchRows.length?`Compraste em <b>${firstBuyDate(a)}</b> e a estimativa é <b>${fmt(+a.dpsAnnual)}/ação/ano</b>. Faltam <b>${catchRows.length} pagamentos</b> até hoje — revê e regista:`:`Nada em falta ✅ — ou já registaste tudo, ou a estimativa anual é 0.`;
+ }
+ document.getElementById("catchTotal").value=catchRows.length?fmt(catchRows.reduce((s,r)=>s+(r.keep?+r.amount||0:0),0)):"";
+ box.innerHTML=catchRows.map((r,i)=>`<div class="orow"><div class="oh"><input type="checkbox" data-i="${i}" class="ck" ${r.keep?"checked":""}><span>${r.date}</span><span class="kbd">${r.qty} ações × ${fmt(r.perShare)}</span></div>
+  <div class="og"><div><label>Data</label><input type="date" data-i="${i}" class="cd" value="${r.date}"></div>
+  <div><label>Valor €</label><input type="number" inputmode="decimal" data-i="${i}" class="ca" value="${r.amount}"></div></div></div>`).join("");
+ const tot=catchRows.filter(r=>r.keep).reduce((s,r)=>s+(+r.amount||0),0);
+ document.getElementById("catchImport").textContent=catchRows.length?`Registar (${fmt(tot)})`:"Registar selecionados"}
+document.getElementById("catchFreq").onchange=renderCatch;
+document.getElementById("catchRows").addEventListener("input",e=>{const i=+e.target.dataset.i;if(isNaN(i)||!catchRows[i])return;
+ if(e.target.classList.contains("ck"))catchRows[i].keep=e.target.checked;
+ else if(e.target.classList.contains("cd"))catchRows[i].date=e.target.value;
+ else if(e.target.classList.contains("ca"))catchRows[i].amount=num(e.target.value);
+ const tot=catchRows.filter(r=>r.keep).reduce((s,r)=>s+(+r.amount||0),0);
+ document.getElementById("catchTotal").value=fmt(tot);
+ document.getElementById("catchImport").textContent=`Registar (${fmt(tot)})`});
+document.getElementById("catchImport").onclick=()=>{const a=S.assets.find(x=>x.id===catchAssetId);
+ const sel=catchRows.filter(r=>r.keep&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&num(r.amount)>0);
+ if(!a||!sel.length){toast("Seleciona pelo menos 1 pagamento ⚠️");return}
+ for(const r of sel)S.payments.push({id:uid(),assetTicker:a.ticker,date:r.date,amount:Math.round(num(r.amount)*100)/100});
+ save();closeAll();renderAll();switchView("v-hist");
+ gainXP(10*sel.length);coinBurst(80);ching();
+ toast(sel.length===1?`Registado ${fmt(sel[0].amount)} de ${a.ticker}!`:`Registados ${sel.length} dividendos (${fmt(sel.reduce((s,r)=>s+num(r.amount),0))})!`);
+ catchAssetId=null;catchRows=[]};
 document.getElementById("pAsset").onchange=autoAmount;
 document.getElementById("pDate").onchange=autoAmount;
 document.getElementById("btnAddPay").onclick=()=>{if(!S.assets.length){toast("Cria primeiro um ativo 💼");switchView("v-wallet");return}newPayForm();openM("mPay")};
