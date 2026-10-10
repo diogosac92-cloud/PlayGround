@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>Táxi Praças — Para onde devo ir?</title>
+<style>
+:root{
+  --bg:#111214; --card:#1c1e21; --card2:#24272c; --line:#33373d;
+  --yellow:#ffd400; --yellow2:#ffdf4d; --txt:#f5f5f5; --muted:#a8adb5;
+  --green:#2ecc71; --red:#ff5a5a; --blue:#4da3ff;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:10;background:rgba(17,18,20,.95);backdrop-filter:blur(8px);border-bottom:2px solid var(--yellow)}
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.logo{width:42px;height:42px;border-radius:10px;background:var(--yellow);display:grid;place-items:center;font-size:24px;font-weight:900;color:#111;flex:none}
+h1{font-size:18px;margin:0;line-height:1.1}
+.sub{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+main{max-width:860px;margin:0 auto;padding:12px 12px 110px}
+.tabs{position:sticky;top:67px;z-index:9;background:var(--bg);padding:8px 0;display:flex;gap:8px;overflow-x:auto}
+.tabs button{flex:1;white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--txt);padding:10px 12px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer}
+.tabs button.active{background:var(--yellow);color:#111;border-color:var(--yellow)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:12px 0}
+.card h2{margin:0 0 6px;font-size:16px}
+.card h3{margin:12px 0 8px;font-size:14px}
+p,li{font-size:14px;line-height:1.5}
+.muted{color:var(--muted);font-size:13px}
+.big-rec{background:linear-gradient(135deg,#ffd400,#ff9d00);color:#111;border-radius:var(--radius);padding:16px;margin:12px 0;border:none}
+.big-rec .k{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.big-rec .v{font-size:26px;font-weight:900;margin:4px 0}
+.big-rec .d{font-size:14px;font-weight:500}
+.grid{display:grid;gap:10px}
+@media(min-width:640px){.grid.cols2{grid-template-columns:1fr 1fr}}
+.praca{display:flex;gap:12px;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.praca.rec{border:2px solid var(--yellow);background:#2a2510}
+.rank{width:34px;height:34px;border-radius:50%;background:#111;color:var(--yellow);display:grid;place-items:center;font-weight:900;flex:none;border:1px solid var(--yellow)}
+.praca.rec .rank{background:var(--yellow);color:#111}
+.praca .info{flex:1;min-width:0}
+.praca .name{font-weight:800;font-size:15px}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.badge{font-size:12px;background:#111;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--txt)}
+.badge.y{background:var(--yellow);color:#111;border-color:var(--yellow);font-weight:800}
+.badge.g{background:#0f2f1d;color:var(--green);border-color:var(--green)}
+.badge.r{background:#331414;color:var(--red);border-color:var(--red)}
+.bar{height:8px;background:#111;border-radius:99px;overflow:hidden;margin-top:8px;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:var(--yellow)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,textarea{width:100%;background:#111;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:11px 12px;font-size:15px}
+input:focus,select:focus{outline:2px solid var(--yellow);border-color:var(--yellow)}
+label{font-size:13px;color:var(--muted);display:block;margin:10px 0 5px;font-weight:600}
+button.btn{border:none;border-radius:11px;padding:12px 14px;font-size:15px;font-weight:800;cursor:pointer;background:var(--yellow);color:#111;width:100%}
+button.btn.ghost{background:transparent;color:var(--yellow);border:1.5px solid var(--yellow)}
+button.btn.dark{background:#111;color:var(--txt);border:1px solid var(--line)}
+button.btn.small{width:auto;padding:8px 12px;font-size:13px}
+button.btn:disabled{opacity:.5}
+.stepper{display:flex;align-items:center;gap:12px;margin:8px 0}
+.stepper button{width:52px;height:52px;border-radius:14px;font-size:26px;font-weight:900;background:#111;color:var(--yellow);border:1.5px solid var(--yellow);cursor:pointer}
+.stepper .num{font-size:42px;font-weight:900;min-width:90px;text-align:center}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+canvas.chart{width:100%;height:140px;background:#111;border:1px solid var(--line);border-radius:10px}
+.imgprev{max-width:100%;border-radius:10px;border:1px solid var(--line);margin-top:8px}
+.notice{background:#1a2a44;border:1px solid var(--blue);border-radius:10px;padding:10px 12px;font-size:13px;color:#cfe3ff}
+.warn{background:#331414;border:1px solid var(--red);border-radius:10px;padding:10px 12px;font-size:13px;color:#ffd6d6}
+.ok{background:#0f2f1d;border:1px solid var(--green);border-radius:10px;padding:10px 12px;font-size:13px;color:#c9f5da}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.kpi>div{background:#111;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.kpi b{display:block;font-size:20px}
+.kpi span{font-size:11.5px;color:var(--muted)}
+footer.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(20,21,24,.97);border-top:1px solid var(--line);display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:20}
+footer.tabbar button{flex:1;background:none;border:none;color:var(--muted);font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px}
+footer.tabbar button span.e{font-size:20px}
+footer.tabbar button.active{color:var(--yellow)}
+details{margin-top:8px}
+details summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--yellow)}
+.numchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.numchips button{background:#111;border:1.5px solid var(--blue);color:#fff;border-radius:10px;padding:10px 14px;font-size:17px;font-weight:800;cursor:pointer}
+.numchips button.sel{border-color:var(--yellow);background:var(--yellow);color:#111}
+.progress{height:8px;background:#111;border-radius:99px;overflow:hidden;border:1px solid var(--line);margin-top:8px}
+.progress>i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s}
+footer.tabbar button{font-size:10px;padding:6px 2px}
+.live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.dot-g{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-y{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+.dot-w{background:var(--muted)}
+.dot-r{background:var(--red)}
+.flightrow{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:7px 2px;border-bottom:1px dashed var(--line)}
+.stationrow{background:#111;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
+.stationrow .t{font-weight:800;font-size:14px}
+.spin{display:inline-block;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="logo">T</div>
+    <div>
+      <h1>Táxi Praças — Para onde devo ir?</h1>
+      <p class="sub">Lê as 2 apps de táxi (ecrã / foto), conta carros por praça e recomenda a melhor.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- RECOMENDAÇÃO -->
+  <section id="tab-rec" class="tab">
+    <div id="heroRec" class="big-rec">
+      <div class="k">◉ Recomendação agora</div>
+      <div class="v" id="heroTitle">Sem dados ainda</div>
+      <div class="d" id="heroDesc">Registe quantos táxis estão em cada praça para receber a recomendação.</div>
+    </div>
+    <div class="card">
+      <h2>⚙️ Janela de análise</h2>
+      <p class="muted">As médias e a taxa de saída são calculadas sobre as leituras deste período.</p>
+      <div class="row">
+        <select id="selJanela" style="max-width:260px">
+          <option value="1">Última 1 hora</option>
+          <option value="4" selected>Últimas 4 horas</option>
+          <option value="24">Últimas 24 horas</option>
+          <option value="168">Últimos 7 dias</option>
+          <option value="99999">Tudo</option>
+        </select>
+        <button class="btn small dark" id="btnExemplo">Carregar dados de exemplo</button>
+        <button class="btn small dark" id="btnLimpar">Apagar tudo</button>
+      </div>
+      <div class="kpi">
+        <div><b id="kpiLeituras">0</b><span>leituras</span></div>
+        <div><b id="kpiPracas">0</b><span>praças</span></div>
+        <div><b id="kpiSaidas">0</b><span>saídas detetadas</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🏁 Ranking — onde tem mais probabilidade de sair depressa</h2>
+      <p class="muted">Pontuação = <b>ritmo de saída ÷ (táxis em espera + 1)</b>. Menos carros à frente + praça que “roda” muito = sai mais depressa.</p>
+      <div id="listaRanking" class="grid"></div>
+    </div>
+    <div class="card">
+      <h2>📊 Ritmo de saída por praça</h2>
+      <canvas id="chartSaidas" class="chart" width="700" height="140"></canvas>
+      <p class="muted" id="chartLegend"></p>
+    </div>
+  </section>
+
+  <!-- REGISTAR -->
+  <section id="tab-reg" class="tab" hidden>
+    <div class="card">
+      <h2>➕ Registar leitura (olhou para a app e viu o ecrã)</h2>
+      <p class="muted">Veja o número de táxis na praça dentro da <b>Taxi-Link</b> / <b>IzzyMove</b> e registe aqui. Com 3–5 leituras por praça o algoritmo já recomenda bem.</p>
+      <label>Praça</label>
+      <select id="regPraca"></select>
+      <label>Fonte (qual app estava a ver?)</label>
+      <select id="regFonte"></select>
+      <label>Quantos táxis estão na praça agora?</label>
+      <div class="stepper">
+        <button id="btnMinus">−</button>
+        <div class="num" id="regNum">3</div>
+        <button id="btnPlus">+</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnGuardarLeitura">Guardar leitura</button>
+      </div>
+      <p class="muted" style="margin-top:8px">Dica: registe de 10 em 10 min, ou sempre que um carro sair. O sistema deteta saídas quando o número baixa entre leituras.</p>
+    </div>
+    <div class="card">
+      <h2>📋 Últimas leituras</h2>
+      <div id="ultimasLeituras"></div>
+    </div>
+  </section>
+
+  <!-- LER ECRÃ -->
+  <section id="tab-ocr" class="tab" hidden>
+    <div class="card">
+      <h2>📸 Ler ecrã das outras apps (OCR)</h2>
+      <div class="notice">
+        As apps de táxi fechadas <b>não têm API pública</b>, por isso esta app <b>lê o ecrã por imagem</b>: tire um <b>print do ecrã</b> da <b>Taxi-Link (motorista)</b> / <b>IzzyMove (motorista)</b> onde se vê o nº de táxis na praça e envie aqui — o OCR extrai os números automaticamente.
+        <br><br><b>Como tirar bom print:</b> abra a Taxi-Link ou a IzzyMove → vá ao ecrã onde vê a praça/fila e a sua posição → print só com a zona dos números bem legível, sem reflexos. A IzzyMove dá prioridade a viaturas paradas em praças reconhecidas — vale a pena registar sempre a mesma praça nas duas apps para comparar.
+      </div>
+      <label>1) Foto / print do ecrã da outra app</label>
+      <input type="file" id="ocrFile" accept="image/*" capture="environment">
+      <img id="ocrPrev" class="imgprev" hidden alt="pré-visualização">
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost" id="btnPedirPrint">📲 Vou tirar o print agora — guia-me</button>
+      </div>
+      <div id="printSteps" class="notice" hidden>
+        <b>Passo 1:</b> abra a <b>Taxi-Link</b> ou a <b>IzzyMove</b> no ecrã da praça/fila.<br>
+        <b>Passo 2:</b> tire o <b>print</b> (botão ligar + volume baixo).<br>
+        <b>Passo 3:</b> volte aqui — pedimos o print de imediato.<br>
+        <span class="muted">A app vai ler sozinha: <b>nº de carros</b>, <b>matrículas</b> (ex. 12-AB-34) e <b>tempos de espera</b>.</span>
+      </div>
+      <label>2) Praça e fonte desta imagem</label>
+      <div class="row">
+        <select id="ocrPraca" style="flex:1"></select>
+        <select id="ocrFonte" style="flex:1"></select>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnOCR">🔍 Ler números da imagem</button>
+      </div>
+      <div class="progress" id="ocrProgWrap" hidden><i id="ocrProg"></i></div>
+      <p class="muted" id="ocrStatus"></p>
+      <div id="ocrNums"></div>
+      <div id="ocrAuto"></div>
+      <label>3) Nº confirmado (toque num número acima ou escreva)</label>
+      <div class="row">
+        <input type="number" id="ocrFinal" min="0" max="500" value="" placeholder="ex: 7" style="flex:1">
+        <button class="btn small" id="btnOCRGuardar" style="flex:1">Guardar leitura OCR</button>
+      </div>
+      <details>
+        <summary>🖥️ Alternativa no computador: capturar janela em direto</summary>
+        <p class="muted">No PC pode capturar a janela da app (se a usar na web) sem ficheiro: o navegador pede para escolher a janela/ecrã e faz OCR à captura.</p>
+        <button class="btn ghost" id="btnScreenCap">Capturar ecrã agora</button>
+        <video id="screenVideo" playsinline muted style="width:100%;border-radius:10px;margin-top:8px" hidden></video>
+        <canvas id="screenCanvas" hidden></canvas>
+      </details>
+      <details>
+        <summary>⚠️ Limites honestos + caminho para 100% automático</summary>
+        <ul>
+          <li><b>Hoje (esta app web):</b> leitura semi-automática por print + OCR + 1 toque de confirmação. Funciona com a <b>Taxi-Link e a IzzyMove</b> sem precisar da sua password de motorista.</li>
+          <li><b>Para 100% automático no Android:</b> seria preciso uma app nativa com <i>MediaProjection</i> (grava o ecrã com autorização) ou <i>AccessibilityService</i> (lê o texto da Taxi-Link/IzzyMove). Posso gerar esse projeto Android (Kotlin) a seguir se quiser.</li>
+          <li><b>OCR falha?</b> Confirme manualmente — a leitura manual conta igual para as médias. Como não vejo o ecrã exato da sua versão das apps, confirme sempre o número antes de guardar.</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <!-- PRAÇAS -->
+  <section id="tab-pracas" class="tab" hidden>
+    <div class="card">
+      <h2>📍 Praças</h2>
+      <p class="muted">Ex.: Aeroporto, Santa Apolónia, Oriente, Rossio, Cais do Sodré…</p>
+      <div id="listaPracas" class="grid cols2"></div>
+      <label>Nova praça</label>
+      <div class="row">
+        <input id="novaPraca" placeholder="Nome da praça — ex: Aeroporto T1" style="flex:2">
+        <button class="btn small" id="btnAddPraca" style="flex:1">Adicionar</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📱 As 2 apps que vai ler</h2>
+      <label>Nome da App 1</label>
+      <input id="cfgAppA" value="App Táxi A">
+      <label>Nome da App 2</label>
+      <input id="cfgAppB" value="App Táxi B">
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnGuardarCfg">Guardar nomes</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>⬇️⬆️ Dados</h2>
+      <div class="row">
+        <button class="btn small dark" id="btnExport">Exportar CSV</button>
+        <button class="btn small dark" id="btnExportJSON">Exportar JSON</button>
+        <label class="btn small dark" style="text-align:center;cursor:pointer">Importar JSON<input type="file" id="fileImport" accept="application/json" hidden></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHEGADAS -->
+  <section id="tab-cheg" class="tab" hidden>
+    <div class="card">
+      <h2>🔎 Procura a chegar — aviões, comboios e cruzeiros</h2>
+      <p class="muted">Isto deteta <b>passageiros prestes a precisar de táxi</b> e reforça a recomendação «Ir para». Toque numa praça com selo ✈️/🚂/🛳️ no ranking para ver o motivo.</p>
+      <div id="resumoCheg" class="notice">A carregar…</div>
+    </div>
+    <div class="card">
+      <h2>✈️ Voos — Aeroporto de Lisboa (LIS)</h2>
+      <p class="muted">Aviões em voo num raio de 45 km. «A aterrar» = baixo (&lt; ~2500 m) e a descer/perto — passageiros cá fora em ~20–40 min.</p>
+      <div class="kpi">
+        <div><b id="airNum">–</b><span>no ar perto</span></div>
+        <div><b id="airAprox">–</b><span>a aterrar</span></div>
+        <div><b id="airIdade">–</b><span>atualizado</span></div>
+      </div>
+      <p class="muted" id="airStatus"><span class="live-dot dot-w"></span>Ainda sem dados.</p>
+      <div id="airList"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small dark" id="btnAirUpd">↻ Atualizar voos</button>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.ana.pt/pt/lis/voos/chegadas" target="_blank" rel="noopener">Chegadas ANA ▸</a>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.flightradar24.com/airport/lis/arrivals" target="_blank" rel="noopener">Radar LIS ▸</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🚂 Comboios — estações de Lisboa (tempo real CP)</h2>
+      <p class="muted">Chegadas <b>reais</b> (com atrasos) nos próximos 45 min, por estação. Fonte: dados públicos do site da CP.</p>
+      <p class="muted" id="trainStatus"><span class="live-dot dot-w"></span>Ainda sem dados.</p>
+      <div id="trainRows"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small dark" id="btnTrainUpd">↻ Atualizar comboios</button>
+        <button class="btn small dark" id="btnTrainTest">🩺 Testar ligação</button>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.cp.pt/info/pt/tempo-real/" target="_blank" rel="noopener">CP tempo real ▸</a>
+      </div>
+      <div id="trainTest" class="muted" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h2>🛳️ Cruzeiros — Terminal de Lisboa</h2>
+      <p class="muted">Não há fonte aberta em tempo real para cruzeiros — o calendário sai com meses de antecedência. Registe aqui o que está no porto <b>hoje</b> (vê-se no calendário oficial) e a app reforça as praças da zona ribeirinha.</p>
+      <label>Navios no porto hoje</label>
+      <select id="selCruise">
+        <option value="0">Nenhum navio</option>
+        <option value="1">1 navio (até ~2000 pessoas)</option>
+        <option value="2">1 grande ou 2 navios (~2000–5000)</option>
+        <option value="3">2+ grandes (5000+)</option>
+      </select>
+      <p class="muted" id="cruiseHint"></p>
+      <div class="row" style="margin-top:10px">
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.portodelisboa.pt/en/planeamento-de-cruzeiros1" target="_blank" rel="noopener">Calendário oficial ▸</a>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://lisbon-cruise-guide.com/cruise-calendar" target="_blank" rel="noopener">Guia diário ▸</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🧮 Como entra na recomendação</h2>
+      <ul>
+        <li>✈️ Praças do <b>Aeroporto</b> ganham até <b>+80%</b> quando há vários aviões a aterrar.</li>
+        <li>🚂 Praças com nome da <b>estação</b> (Oriente, Apolónia, Rossio, Cais…) ganham até <b>+60%</b> conforme as chegadas de comboios.</li>
+        <li>🛳️ Praças da <b>zona ribeirinha</b> (Tabaco, Terminal, Alfama, Terreiro, Cais, Apolónia) ganham até <b>+120%</b> com navio no porto.</li>
+      </ul>
+      <p class="muted">Sem internet ou sem dados, o ranking usa só as suas leituras — como antes.</p>
+    </div>
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section id="tab-hist" class="tab" hidden>
+    <div class="card">
+      <h2>🕘 Histórico e médias</h2>
+      <p class="muted">Saídas = quando o nº de táxis baixa entre duas leituras seguidas da mesma praça (carros que ganharam corrida).</p>
+      <div id="tabelaHist"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="tabbar">
+  <button data-tab="tab-rec" class="active"><span class="e">🏆</span>Ir para</button>
+  <button data-tab="tab-reg"><span class="e">➕</span>Registar</button>
+  <button data-tab="tab-ocr"><span class="e">📸</span>Ler ecrã</button>
+  <button data-tab="tab-cheg"><span class="e">✈️</span>Chegadas</button>
+  <button data-tab="tab-pracas"><span class="e">📍</span>Praças</button>
+  <button data-tab="tab-hist"><span class="e">🕘</span>Histórico</button>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+"use strict";
+/* ===== Estado ===== */
+const LS_KEY = "taxi-pracas-v1";
+let S = load() || seed();
+function seed(){
+  return { appA:"Taxi-Link", appB:"IzzyMove",
+    pracas:[{id:uid(),nome:"Aeroporto T1"},{id:uid(),nome:"Santa Apolónia"},{id:uid(),nome:"Oriente"},{id:uid(),nome:"Cais do Sodré"},{id:uid(),nome:"Jardim do Tabaco"}],
+    leituras:[] };
+}
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3); }
+function load(){ try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; }catch{ return null; } }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+// Migração: quem tinha os nomes genéricos passa a Taxi-Link / IzzyMove
+if(S){ let mig=false;
+  if(S.appA==="App Táxi A"){ S.appA="Taxi-Link"; mig=true; }
+  if(S.appB==="App Táxi B"){ S.appB="IzzyMove"; mig=true; }
+  if(mig) save();
+}
+
+/* ===== Tabs ===== */
+const tabBtns=[...document.querySelectorAll("footer.tabbar button")];
+function showTab(id){
+  document.querySelectorAll(".tab").forEach(s=>s.hidden = s.id!==id);
+  tabBtns.forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  if(id==="tab-rec") renderRec();
+  if(id==="tab-hist") renderHist();
+  if(id==="tab-reg") renderReg();
+  if(id==="tab-cheg"){ renderCheg(); refreshChegSePreciso(); }
+  window.scrollTo({top:0});
+}
+tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+/* ===== Helpers estatística ===== */
+function janelaHoras(){ return parseFloat(document.getElementById("selJanela").value); }
+function leiturasJanela(){
+  const h=janelaHoras(), cut=Date.now()-h*3600*1000;
+  return S.leituras.filter(l=>l.ts>=cut).sort((a,b)=>a.ts-b.ts);
+}
+function statsPorPraca(pracaId, leituras){
+  const L=leituras.filter(l=>l.pracaId===pracaId).sort((a,b)=>a.ts-b.ts);
+  if(!L.length) return null;
+  const vals=L.map(l=>l.n);
+  const soma=vals.reduce((a,b)=>a+b,0), media=soma/vals.length;
+  let saidas=0;
+  for(let i=1;i<L.length;i++){ const d=L[i-1].n-L[i].n; if(d>0) saidas+=d; }
+  const horas=(L.length>1)? Math.max((L[L.length-1].ts-L[0].ts)/3600000, 1/60) : 0;
+  const taxaH = horas>0? saidas/horas : 0; // carros/hora que saem
+  const atual=L[L.length-1].n;
+  const esperaH = taxaH>0? (atual+1)/taxaH : Infinity; // horas estimadas p/ sair
+  const score = taxaH/(atual+1);
+  return {L,atual,media,min:Math.min(...vals),max:Math.max(...vals),saidas,horas,taxaH,esperaH,score,n:L.length};
+}
+function fmtEspera(h){
+  if(!isFinite(h)) return "sem dados de saída";
+  const m=Math.round(h*60);
+  if(m<1) return "< 1 min";
+  if(m<60) return `~${m} min`;
+  const hh=Math.floor(m/60), mm=m%60;
+  return mm? `~${hh}h${String(mm).padStart(2,"0")}` : `~${hh}h`;
+}
+function nomePraca(id){ return (S.pracas.find(p=>p.id===id)||{}).nome||"(apagada)"; }
+
+/* ===== Renders ===== */
+function refreshSelects(){
+  const rp=document.getElementById("regPraca"), op=document.getElementById("ocrPraca");
+  rp.innerHTML=""; op.innerHTML="";
+  S.pracas.forEach(p=>{ rp.add(new Option(p.nome,p.id)); op.add(new Option(p.nome,p.id)); });
+  const rf=document.getElementById("regFonte"), of=document.getElementById("ocrFonte");
+  rf.innerHTML=""; of.innerHTML="";
+  [S.appA,S.appB].forEach(a=>{ rf.add(new Option(a,a)); of.add(new Option(a,a)); });
+  document.getElementById("cfgAppA").value=S.appA;
+  document.getElementById("cfgAppB").value=S.appB;
+}
+function renderRec(){
+  refreshSelects();
+  const L=leiturasJanela();
+  document.getElementById("kpiLeituras").textContent=L.length;
+  document.getElementById("kpiPracas").textContent=S.pracas.length;
+  const totSaidas=S.pracas.reduce((a,p)=>{const s=statsPorPraca(p.id,L);return a+(s?s.saidas:0);},0);
+  document.getElementById("kpiSaidas").textContent=totSaidas;
+  const rows=S.pracas.map(p=>{ const s=statsPorPraca(p.id,L); if(!s) return null; const pb=(typeof bonusProcura==="function")?bonusProcura(p.nome):{f:1,tags:[]}; return {p,s,pb,scoreF:s.score*pb.f}; }).filter(Boolean);
+  rows.sort((a,b)=> (b.scoreF??-1)-(a.scoreF??-1));
+  const semDados=S.pracas.filter(p=>!statsPorPraca(p.id,L));
+  // Hero
+  const heroT=document.getElementById("heroTitle"), heroD=document.getElementById("heroDesc");
+  if(!rows.length){ heroT.textContent="Sem dados ainda"; heroD.textContent="Registe quantos táxis estão em cada praça (separador Registar) ou por foto do ecrã (Ler ecrã)."; }
+  else{
+    const best=rows[0];
+    heroT.textContent="👉 Vai para: "+best.p.nome;
+    heroD.textContent=`${best.s.atual} táxi(s) em espera · ritmo ${best.s.taxaH.toFixed(1)} saídas/hora · espera estimada ${fmtEspera(best.s.esperaH)}.`+(best.pb.tags.length?` Reforço de procura: ${best.pb.tags.join(" · ")}.`:" Probabilidade de sair depressa: a melhor agora.");
+  }
+  // Ranking
+  const box=document.getElementById("listaRanking"); box.innerHTML="";
+  if(!rows.length && !semDados.length) box.innerHTML='<p class="muted">Adicione praças no separador Praças.</p>';
+  rows.forEach((r,i)=>{
+    const maxScore=Math.max(...rows.map(x=>x.scoreF),0.0001);
+    const pct=Math.round(100*r.scoreF/maxScore);
+    const el=document.createElement("div");
+    el.className="praca"+(i===0?" rec":"");
+    el.innerHTML=`<div class="rank">${i+1}</div>
+      <div class="info"><div class="name">${i===0?"⭐ ":""}${esc(r.p.nome)}</div>
+      <div class="badges">
+        <span class="badge y">${r.s.atual} em espera</span>
+        <span class="badge">média ${r.s.media.toFixed(1)}</span>
+        <span class="badge ${r.s.taxaH>0?"g":""}">${r.s.taxaH.toFixed(1)} saídas/h</span>
+        <span class="badge">espera ${fmtEspera(r.s.esperaH)}</span>
+        ${r.pb.tags.map(t=>`<span class="badge g">${esc(t)}</span>`).join("")}
+      </div>
+      <div class="muted">${r.s.n} leituras · ${r.s.saidas} saídas detetadas · min ${r.s.min} / máx ${r.s.max}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div>`;
+    box.appendChild(el);
+  });
+  semDados.forEach(p=>{
+    const el=document.createElement("div"); el.className="praca";
+    el.innerHTML=`<div class="rank">–</div><div class="info"><div class="name">${esc(p.nome)}</div><div class="muted">Sem leituras nesta janela. Registe para entrar no ranking.</div></div>`;
+    box.appendChild(el);
+  });
+  drawChart(rows);
+}
+function drawChart(rows){
+  const c=document.getElementById("chartSaidas"), ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+  const leg=document.getElementById("chartLegend");
+  if(!rows.length){ leg.textContent="Sem dados para gráfico."; return; }
+  const max=Math.max(...rows.map(r=>r.s.taxaH),1);
+  const bw=c.width/rows.length;
+  rows.forEach((r,i)=>{
+    const h=(c.height-24)*(r.s.taxaH/max);
+    ctx.fillStyle=i===0?"#ffd400":"#4da3ff";
+    ctx.fillRect(i*bw+12, c.height-16-h, bw-24, h);
+    ctx.fillStyle="#fff"; ctx.font="11px system-ui";
+    ctx.fillText(r.s.taxaH.toFixed(1)+"/h", i*bw+12, c.height-18-h);
+    ctx.fillStyle="#a8adb5";
+    ctx.fillText(r.p.nome.slice(0,12), i*bw+12, c.height-3);
+  });
+  leg.textContent="Barra = ritmo de saída (carros/hora). Amarela = recomendada.";
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+/* ===== Registar ===== */
+let regN=3;
+const regNum=document.getElementById("regNum");
+document.getElementById("btnMinus").onclick=()=>{regN=Math.max(0,regN-1);regNum.textContent=regN;};
+document.getElementById("btnPlus").onclick=()=>{regN=Math.min(500,regN+1);regNum.textContent=regN;};
+document.getElementById("btnGuardarLeitura").onclick=()=>{
+  const pracaId=document.getElementById("regPraca").value;
+  if(!pracaId) return alert("Crie primeiro uma praça no separador Praças.");
+  S.leituras.push({id:uid(),pracaId,fonte:document.getElementById("regFonte").value,n:regN,ts:Date.now(),metodo:"manual"});
+  save(); renderReg(); toast("Leitura guardada ✔");
+};
+function renderReg(){
+  refreshSelects();
+  const ult=[...S.leituras].sort((a,b)=>b.ts-a.ts).slice(0,10);
+  const box=document.getElementById("ultimasLeituras");
+  box.innerHTML= ult.length? `<table><tr><th>Hora</th><th>Praça</th><th>Fonte</th><th>Nº</th><th></th></tr>${ult.map(l=>`<tr><td>${new Date(l.ts).toLocaleString("pt-PT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</td><td>${esc(nomePraca(l.pracaId))}</td><td>${esc(l.fonte)}</td><td><b>${l.n}</b></td><td><button class="btn small dark" onclick="delLeitura('${l.id}')">✕</button></td></tr>`).join("")}</table>` : '<p class="muted">Ainda sem leituras.</p>';
+}
+window.delLeitura=(id)=>{ S.leituras=S.leituras.filter(l=>l.id!==id); save(); renderReg(); renderRec(); };
+
+/* ===== Praças / config ===== */
+function renderPracas(){
+  const box=document.getElementById("listaPracas"); box.innerHTML="";
+  S.pracas.forEach(p=>{
+    const s=statsPorPraca(p.id,S.leituras);
+    const d=document.createElement("div"); d.className="praca";
+    d.innerHTML=`<div class="info"><div class="name">${esc(p.nome)}</div><div class="muted">${s?`atual ${s.atual} · média ${s.media.toFixed(1)} · ${s.n} leituras`:"sem leituras"}</div></div><button class="btn small dark">✕</button>`;
+    d.querySelector("button").onclick=()=>{ if(!confirm(`Apagar "${p.nome}" e as suas leituras?`))return; S.pracas=S.pracas.filter(x=>x.id!==p.id); S.leituras=S.leituras.filter(l=>l.pracaId!==p.id); save(); renderPracas(); renderRec(); };
+    box.appendChild(d);
+  });
+}
+document.getElementById("btnAddPraca").onclick=()=>{
+  const v=document.getElementById("novaPraca").value.trim();
+  if(!v) return alert("Escreva o nome da praça.");
+  S.pracas.push({id:uid(),nome:v}); document.getElementById("novaPraca").value=""; save(); renderPracas(); renderRec(); toast("Praça adicionada ✔");
+};
+document.getElementById("btnGuardarCfg").onclick=()=>{
+  S.appA=document.getElementById("cfgAppA").value.trim()||"App Táxi A";
+  S.appB=document.getElementById("cfgAppB").value.trim()||"App Táxi B";
+  save(); refreshSelects(); toast("Apps guardadas ✔");
+};
+document.getElementById("selJanela").onchange=renderRec;
+document.getElementById("btnExemplo").onclick=()=>{
+  if(!S.pracas.length) S=Object.assign(S,seed());
+  const now=Date.now();
+  const plan=[ [0,6,4,9,3],[1,10,8,5,7],[2,2,1,3,2] ]; // por praça: evolução (saídas visíveis)
+  S.pracas.slice(0,3).forEach((p,pi)=>{
+    plan[pi%3].forEach((n,k)=> S.leituras.push({id:uid(),pracaId:p.id,fonte:k%2?S.appA:S.appB,n,ts:now-(plan[pi%3].length-k)*12*60000,metodo:"exemplo"}));
+  });
+  save(); renderRec(); toast("Exemplo carregado ✔ — veja o ranking");
+};
+document.getElementById("btnLimpar").onclick=()=>{ if(confirm("Apagar TODAS as leituras?")){S.leituras=[];save();renderRec();} };
+
+/* ===== Histórico ===== */
+function renderHist(){
+  const L=[...S.leituras].sort((a,b)=>b.ts-a.ts).slice(0,200);
+  const box=document.getElementById("tabelaHist");
+  if(!L.length){box.innerHTML='<p class="muted">Sem leituras.</p>';return;}
+  box.innerHTML=`<table><tr><th>Data/hora</th><th>Praça</th><th>Fonte</th><th>Nº táxis</th><th>Variação</th></tr>${L.map((l,i)=>{
+    const prev=[...S.leituras].filter(x=>x.pracaId===l.pracaId&&x.ts<l.ts).sort((a,b)=>b.ts-a.ts)[0];
+    const d=prev? (prev.n-l.n):0;
+    const tag=d>0?`<span class="badge g">−${d} saíram 🚕</span>`:d<0?`<span class="badge r">+${-d} chegaram</span>`:`<span class="badge">—</span>`;
+    return `<tr><td>${new Date(l.ts).toLocaleString("pt-PT")}</td><td>${esc(nomePraca(l.pracaId))}</td><td>${esc(l.fonte||"")}</td><td><b>${l.n}</b></td><td>${tag}</td></tr>`;
+  }).join("")}</table>
+  <h3>Médias por praça (janela atual)</h3>
+  <table><tr><th>Praça</th><th>Média</th><th>Saídas/h</th><th>Espera est.</th></tr>${S.pracas.map(p=>{const s=statsPorPraca(p.id,leiturasJanela());return s?`<tr><td>${esc(p.nome)}</td><td>${s.media.toFixed(1)}</td><td>${s.taxaH.toFixed(1)}</td><td>${fmtEspera(s.esperaH)}</td></tr>`:`<tr><td>${esc(p.nome)}</td><td colspan="3">sem dados</td></tr>`;}).join("")}</table>
+  <h3>Taxi-Link vs IzzyMove (janela atual)</h3>
+  <table><tr><th>App</th><th>Leituras</th><th>Média táxis vistos</th></tr>${[S.appA,S.appB].map(a=>{const ll=leiturasJanela().filter(l=>(l.fonte||"")===a);const m=ll.length?ll.reduce((x,l)=>x+l.n,0)/ll.length:NaN;return `<tr><td>${esc(a)}</td><td>${ll.length}</td><td>${isNaN(m)?"—":m.toFixed(1)}</td></tr>`;}).join("")}</table>
+  <p class="muted">Registe a mesma praça nas duas apps: a «média de táxis vistos» ajuda a perceber se uma das apps mostra mais movimento que a outra.</p>`;
+}
+
+/* ===== Export/Import ===== */
+document.getElementById("btnExport").onclick=()=>{
+  const rows=[["datahora","praca","fonte","n_taxis","metodo"],...S.leituras.map(l=>[new Date(l.ts).toISOString(),nomePraca(l.pracaId),l.fonte,l.n,l.metodo||""])];
+  dl("taxis-pracas.csv", rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n"), "text/csv");
+};
+document.getElementById("btnExportJSON").onclick=()=> dl("taxis-pracas.json", JSON.stringify(S,null,2), "application/json");
+document.getElementById("fileImport").onchange=(e)=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(o.pracas&&o.leituras){S=o;save();renderPracas();renderRec();toast("Importado ✔");} else alert("Ficheiro inválido."); }catch{alert("Ficheiro inválido.");} }; r.readAsText(f);
+};
+function dl(name,content,type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+function toast(m){ const d=document.createElement("div"); d.className="ok"; d.textContent=m; d.style.cssText="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99;padding:10px 18px;border-radius:99px;font-weight:700"; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+
+/* ===== OCR ===== */
+let printArmado=false;
+document.getElementById("btnPedirPrint").onclick=()=>{
+  const s=document.getElementById("printSteps"); s.hidden=!s.hidden;
+  if(!s.hidden){ printArmado=true; toast("Siga os passos e volte aqui"); }
+};
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&printArmado){
+    printArmado=false; toast("De volta? Escolha o print 👇");
+    const f=document.getElementById("ocrFile");
+    try{ f.scrollIntoView({behavior:"smooth",block:"center"}); }catch{}
+  }
+});
+// Extrai estrutura: matrículas PT (12-AB-34 e AB-12-CD), tempos (12 min, 05:30) e números
+function extrairInfo(txt){
+  const raw=String(txt||"");
+  const T=raw.toUpperCase();
+  const set=new Set(), placas=[];
+  const fixD=s=>s.replace(/O/g,"0").replace(/I/g,"1").replace(/L/g,"1"); // confusões típicas do OCR em posições numéricas
+  // Passagem única com alternância: evita falsos positivos por sobreposição (ex. "XT-67 AB" dentro de "45-XT-67 AB-12-CD")
+  const RE=/\b(?:(\d{2})[\s.\-–]?([A-Z]{2})[\s.\-–]?(\d{2})|([A-Z]{2})[\s.\-–]?(\d{2})[\s.\-–]?([A-Z]{2}))\b/g;
+  let m;
+  while((m=RE.exec(T))){
+    let disp;
+    if(m[1]!==undefined) disp=`${fixD(m[1])}-${m[2]}-${fixD(m[3])}`;       // 12-AB-34
+    else disp=`${m[4]}-${fixD(m[5])}-${m[6]}`;                              // AB-12-CD
+    if(!set.has(disp)){ set.add(disp); placas.push(disp); }
+  }
+  const tempos=[...(raw.match(/\b\d{1,3}\s?min\b/gi)||[]),...(raw.match(/\b\d{1,2}:\d{2}\b/g)||[])].slice(0,8);
+  const nums=(raw.match(/\d{1,3}/g)||[]).map(Number).filter(n=>n<=500);
+  const sugerido=placas.length?placas.length:(nums.length?nums[0]:null);
+  return {placas,tempos,nums,sugerido};
+}
+function renderAuto(info){
+  const box=document.getElementById("ocrAuto");
+  if(info.sugerido==null){ box.innerHTML='<div class="warn">Não consegui ler carros, matrículas nem tempos. Tente outro print mais nítido ou use o registo manual.</div>'; return; }
+  box.innerHTML=`<div class="ok"><b>🤖 Leitura automática</b><br>🚕 Carros detetados: <b>${info.placas.length?info.placas.length+" (por matrícula)":info.sugerido}</b>${info.placas.length?`<br><span>Matrículas: ${info.placas.map(esc).join(" · ")}</span>`:""}${info.tempos.length?`<br>⏱️ Tempos vistos: ${info.tempos.map(esc).join(" · ")}`:""}<div class="row" style="margin-top:10px"><button class="btn" id="btnAutoGuardar">Guardar: ${info.sugerido} carro(s) — 1 toque</button></div></div>`;
+  document.getElementById("ocrFinal").value=info.sugerido;
+  document.getElementById("btnAutoGuardar").onclick=()=>{
+    const pracaId=document.getElementById("ocrPraca").value;
+    if(!pracaId) return alert("Escolha a praça primeiro (passo 2).");
+    S.leituras.push({id:uid(),pracaId,fonte:document.getElementById("ocrFonte").value,n:info.sugerido,ts:Date.now(),metodo:"ocr-auto",det:{placas:info.placas,tempos:info.tempos}});
+    save(); renderRec(); toast(`Leitura automática guardada ✔ (${info.sugerido} carros)`);
+    showTab("tab-rec");
+  };
+}
+const ocrFile=document.getElementById("ocrFile"), ocrPrev=document.getElementById("ocrPrev");
+let ocrDataUrl=null;
+ocrFile.onchange=()=>{ const f=ocrFile.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ocrDataUrl=r.result; ocrPrev.src=ocrDataUrl; ocrPrev.hidden=false;}; r.readAsDataURL(f); };
+document.getElementById("btnOCR").onclick=async()=>{
+  if(!ocrDataUrl) return alert("Escolha primeiro a foto/print do ecrã.");
+  const st=document.getElementById("ocrStatus"), wrap=document.getElementById("ocrProgWrap"), bar=document.getElementById("ocrProg");
+  st.textContent="A preparar imagem…"; wrap.hidden=false;
+  try{
+    const img=await loadImg(ocrDataUrl);
+    // Pré-processamento: escala + cinzento + contraste para melhorar dígitos
+    const cv=document.createElement("canvas"); const k=Math.min(2, 1600/Math.max(img.width,img.height))+1;
+    cv.width=img.width*k; cv.height=img.height*k;
+    const cx=cv.getContext("2d"); cx.drawImage(img,0,0,cv.width,cv.height);
+    const id=cx.getImageData(0,0,cv.width,cv.height), dd=id.data;
+    for(let i=0;i<dd.length;i+=4){ const g=0.299*dd[i]+0.587*dd[i+1]+0.114*dd[i+2]; const v=g>140?255:(g<90?0:g); dd[i]=dd[i+1]=dd[i+2]=v; }
+    cx.putImageData(id,0,0);
+    const pre=cv.toDataURL("image/png");
+    ocrPrev.src=pre;
+    st.textContent="A ler números (OCR)… isto demora ~10–20s na 1ª vez.";
+    const res=await Tesseract.recognize(pre,"por+eng",{logger:m=>{ if(m.status==="recognizing text"&&m.progress){bar.style.width=Math.round(m.progress*100)+"%"; st.textContent=`A ler… ${Math.round(m.progress*100)}%`;} }});
+    const txt=res.data.text||"";
+    const nums=(txt.match(/\d{1,3}/g)||[]).map(Number).filter(n=>n<=500);
+    const uniq=[...new Set(nums)].slice(0,12);
+    const box=document.getElementById("ocrNums");
+    const infoPre=extrairInfo(txt);
+    if(!uniq.length&&!infoPre.placas.length){ st.textContent="Não encontrei números. Texto lido: “"+txt.slice(0,120)+"”. Tente outro print mais nítido ou registe manualmente."; box.innerHTML=""; renderAuto(infoPre); return; }
+    st.textContent="Toque no número correto (nº de táxis na praça):";
+    box.innerHTML=""; box.className="numchips";
+    uniq.forEach(n=>{ const b=document.createElement("button"); b.textContent=n; b.onclick=()=>{document.getElementById("ocrFinal").value=n; [...box.children].forEach(x=>x.classList.remove("sel")); b.classList.add("sel");}; box.appendChild(b); });
+    document.getElementById("ocrFinal").value=uniq[0];
+    box.firstChild.classList.add("sel");
+    renderAuto(extrairInfo(txt));
+    st.textContent+=` (texto completo: “${txt.slice(0,140)}”)`;
+  }catch(e){ console.error(e); st.textContent="Falha no OCR: "+e.message; }
+  finally{ wrap.hidden=true; }
+};
+function loadImg(src){ return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;}); }
+document.getElementById("btnOCRGuardar").onclick=()=>{
+  const pracaId=document.getElementById("ocrPraca").value;
+  const n=parseInt(document.getElementById("ocrFinal").value,10);
+  if(!pracaId) return alert("Crie primeiro uma praça.");
+  if(isNaN(n)||n<0) return alert("Confirme o número de táxis.");
+  S.leituras.push({id:uid(),pracaId,fonte:document.getElementById("ocrFonte").value,n,ts:Date.now(),metodo:"ocr"});
+  save(); renderRec(); toast("Leitura OCR guardada ✔");
+  showTab("tab-rec");
+};
+// Captura de ecrã (desktop)
+document.getElementById("btnScreenCap").onclick=async()=>{
+  const v=document.getElementById("screenVideo");
+  try{
+    const stream=await navigator.mediaDevices.getDisplayMedia({video:true});
+    v.srcObject=stream; v.hidden=false; await v.play();
+    const st=document.getElementById("ocrStatus");
+    st.textContent="Janela a partilhar — coloque a app visível e aguarde 3s…";
+    await new Promise(r=>setTimeout(r,3000));
+    const cv=document.getElementById("screenCanvas");
+    cv.width=v.videoWidth; cv.height=v.videoHeight;
+    cv.getContext("2d").drawImage(v,0,0);
+    ocrDataUrl=cv.toDataURL("image/png");
+    document.getElementById("ocrPrev").src=ocrDataUrl; document.getElementById("ocrPrev").hidden=false;
+    stream.getTracks().forEach(t=>t.stop()); v.hidden=true;
+    st.textContent="Captura pronta ✔ — prima “Ler números da imagem”.";
+  }catch(e){ alert("Captura cancelada ou não suportada neste dispositivo."); }
+};
+
+/* ===== Chegadas: aviões + comboios + cruzeiros ===== */
+const LS_CHEG="taxi-chegadas-v2";
+let CHEG=loadCheg()||{air:null,trains:{},cruise:{nivel:0,data:""},ts:0};
+function loadCheg(){ try{ const r=localStorage.getItem(LS_CHEG); return r?JSON.parse(r):null; }catch{ return null; } }
+function saveCheg(){ try{ localStorage.setItem(LS_CHEG,JSON.stringify(CHEG)); }catch{} }
+function hojeISO(){ return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function horaHM(){ return new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}); }
+(function(){ const h=hojeISO(); if(!CHEG.cruise||CHEG.cruise.data!==h){ CHEG.cruise={nivel:0,data:h}; saveCheg(); } })();
+function norm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function ha(ts){ if(!ts) return "–"; const m=Math.max(0,Math.round((Date.now()-ts)/60000)); return m<1?"agora":m<60?`há ${m} min`:`há ${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; }
+async function fetchT(url,ms,ext,init){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms); const onExt=()=>c.abort(); if(ext){ if(ext.aborted) c.abort(); else ext.addEventListener("abort",onExt,{once:true}); } try{ const r=await fetch(url,{...(init||{}),signal:c.signal}); if(!r.ok) throw new Error("HTTP "+r.status); return r; }finally{ clearTimeout(t); if(ext) ext.removeEventListener("abort",onExt); } }
+// Teste de internet real: pedido opaco (no-cors) resolve sempre que há rede, sem precisar de CORS
+async function temInternet(ms=6000){ try{ const o={mode:"no-cors"}; if(AbortSignal.timeout) o.signal=AbortSignal.timeout(ms); await fetch("https://www.cp.pt/fe-config.json",o); return true; }catch{ return false; } }
+
+const LIS={lat:38.7742,lon:-9.1342};
+const CP_STATIONS=[
+  {id:"94-31039",nome:"Oriente",keys:["oriente"]},
+  {id:"94-30007",nome:"Santa Apolónia",keys:["apolonia"]},
+  {id:"94-59006",nome:"Rossio",keys:["rossio"]},
+  {id:"94-69005",nome:"Cais do Sodré",keys:["sodre","cais"]},
+  {id:"94-66076",nome:"Sete Rios",keys:["sete rios"]},
+  {id:"94-66050",nome:"Entrecampos",keys:["entrecampos"]}
+];
+const AIR_KEYS=["aeroporto","airport","portela"];
+const CRZ_KEYS=["tabaco","cruzeiro","cruise","terminal","alfama","terreiro","sodre","cais","apolonia","santa"];
+// Chaves públicas servidas pelo próprio site da CP (www.cp.pt/fe-config.json). A app tenta renová-las
+// sozinha em cada arranque; estes valores são apenas o recurso se a renovação falhar.
+const CP_FALLBACK={url:"https://api-gateway.cp.pt/cp/services/travel-api",key:"ca3923e4-1d3c-424f-a3d0-9554cf3ef859",id:"1483ea620b920be6328dcf89e808937a",sec:"74bd06d5a2715c64c2f848c5cdb56e6b"};
+
+function distKm(la1,lo1,la2,lo2){ const R=6371,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180; const a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(a)); }
+
+/* --- Voos --- */
+let airBusy=false;
+async function atualizaVoos(){
+  if(airBusy) return; airBusy=true;
+  const st=document.getElementById("airStatus");
+  st.innerHTML='<span class="live-dot dot-y"></span><span class="spin">↻</span> A pedir posições de aviões…';
+  const ADSB_LOL=`https://api.adsb.lol/v2/lat/${LIS.lat}/lon/${LIS.lon}/dist/45`;
+  const OD3=`https://opendata.adsb.fi/api/v3/lat/${LIS.lat}/lon/${LIS.lon}/dist/25`;
+  const OSKY=`https://opensky-network.org/api/states/all?lamin=38.4&lamax=39.1&lomin=-9.7&lomax=-8.7`;
+  const FR24=`https://api.flightradar24.com/common/v1/airport.json?code=lis&plugin[]=schedule&plugin-setting[schedule][mode]=arrivals&limit=30&page=1`;
+  const cand=[
+    ["adsb.fi",OD3,9000,parseAdsb],["adsb.lol",ADSB_LOL,9000,parseAdsb],
+    ["proxy·fi","https://api.cors.lol/?url="+encodeURIComponent(OD3),12000,parseAdsb],
+    ["proxy·lol","https://api.cors.lol/?url="+encodeURIComponent(ADSB_LOL),12000,parseAdsb],
+    ["allorigins·fi","https://api.allorigins.win/raw?url="+encodeURIComponent(OD3),15000,parseAdsb],
+    ["allorigins·lol","https://api.allorigins.win/raw?url="+encodeURIComponent(ADSB_LOL),15000,parseAdsb],
+    ["opensky",OSKY,9000,parseOpenSky],["FR24",FR24,10000,parseFR24]
+  ];
+  const shared=new AbortController();
+  try{
+    const win=await Promise.any(cand.map(([f,u,ms,ps])=>(async()=>{ const j=await (await fetchT(u,ms,shared.signal)).json(); return {p:ps(j),f}; })()));
+    shared.abort();
+    CHEG.air={...win.p,fonte:win.f,ts:Date.now()}; saveCheg(); renderCheg(); airBusy=false; return;
+  }catch(e){ shared.abort(); /* todas falharam */ }
+  const online=await temInternet();
+  st.innerHTML='<span class="live-dot dot-r"></span>'+(online
+    ?'As fontes de voos estão a bloquear o acesso automático. A sua internet está bem — toque em Atualizar para tentar de novo, ou veja as chegadas oficiais no botão ANA.'
+    :'Parece não haver internet. Ligue os dados/Wi-Fi e tente de novo.')+(CHEG.air?` <span class="muted">Último valor: ${ha(CHEG.air.ts)}.</span>`:"")+ ' <span class="muted">Picos típicos LIS: 7–10h, 12–15h e 18–22h.</span>';
+  airBusy=false; renderChegNums();
+}
+function parseAdsb(j){
+  if(!j||!Array.isArray(j.ac)) throw new Error("formato ADS-B");
+  const ac=j.ac; const out=[];
+  for(const a of ac){
+    if(a.lat==null||a.lon==null) continue;
+    const d=distKm(LIS.lat,LIS.lon,a.lat,a.lon); if(d>45) continue;
+    const alt = a.alt_baro==="ground" ? 0 : (typeof a.alt_baro==="number"?a.alt_baro*0.3048:null);
+    const desc = (typeof a.baro_rate==="number"&&a.baro_rate<-200)||(alt!=null&&alt<1200);
+    out.push({cs:(a.flight||a.r||a.hex||"?").trim(),alt:alt!=null?Math.round(alt):null,gs:a.gs?Math.round(a.gs*1.852):null,desc,d:Math.round(d)});
+  }
+  out.sort((x,y)=>(x.alt??99999)-(y.alt??99999));
+  return {total:out.length,aprox:out.filter(o=>o.alt!=null&&o.alt<2500&&(o.desc||o.d<25)).length,lista:out.slice(0,6)};
+}
+function parseOpenSky(j){
+  if(!j||!Array.isArray(j.states)) throw new Error("formato OpenSky");
+  const sts=j.states; const out=[];
+  for(const s of sts){
+    const lon=s[5],lat=s[6]; if(lat==null||lon==null) continue;
+    const d=distKm(LIS.lat,LIS.lon,lat,lon); if(d>45) continue;
+    const alt=s[7]!=null?Math.round(s[7]):null, gnd=!!s[8];
+    const desc=!gnd&&alt!=null&&alt<2500;
+    out.push({cs:(s[1]||s[0]||"?").trim(),alt,gs:s[9]!=null?Math.round(s[9]*3.6):null,desc,d:Math.round(d)});
+  }
+  out.sort((x,y)=>(x.alt??99999)-(y.alt??99999));
+  return {total:out.length,aprox:out.filter(o=>o.desc&&o.d<30).length,lista:out.slice(0,6)};
+}
+function parseFR24(j){
+  const arr=j&&j.result&&j.result.response&&j.result.response.airport&&j.result.response.airport.pluginData&&j.result.response.airport.pluginData.schedule&&j.result.response.airport.pluginData.schedule.arrivals&&j.result.response.airport.pluginData.schedule.arrivals.data;
+  if(!Array.isArray(arr)) throw new Error("formato FR24");
+  const now=Date.now()/1000;
+  const aprox=arr.filter(a=>{ const t=a&&a.flight&&a.flight.time&&a.flight.time.scheduled&&a.flight.time.scheduled.arrival||0; return t>now-1800&&t<now+5400; }).length;
+  const lista=arr.map(a=>a&&a.flight||{}).filter(f=>f.time&&f.time.scheduled&&f.time.scheduled.arrival).sort((a,b)=>a.time.scheduled.arrival-b.time.scheduled.arrival).slice(0,6).map(f=>({cs:String(f.callsign||f.flight||"?").trim(),alt:null,gs:null,desc:false,d:null,h:f.time.scheduled.arrival}));
+  return {total:arr.length,aprox,lista};
+}
+function renderChegNums(){
+  const a=CHEG.air;
+  document.getElementById("airNum").textContent=a?a.total:"–";
+  document.getElementById("airAprox").textContent=a?a.aprox:"–";
+  document.getElementById("airIdade").textContent=a?ha(a.ts):"–";
+}
+
+/* --- Comboios (CP, tempo real) --- */
+let CP_CFG=null, trainBusy=false;
+async function cpConfig(force){
+  if(CP_CFG&&!force) return CP_CFG;
+  if(!force){
+    try{ const j=await (await fetchT("https://www.cp.pt/fe-config.json",5000)).json();
+      if(j.travelApiKey){ CP_CFG={url:j.travelApiUrl,key:j.travelApiKey,id:j.xcck,sec:j.xccs,via:"site CP"}; return CP_CFG; } }catch(e){}
+  }
+  try{ const j=await (await fetchT("https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.cp.pt/fe-config.json"),10000)).json();
+    if(j.travelApiKey){ CP_CFG={url:j.travelApiUrl,key:j.travelApiKey,id:j.xcck,sec:j.xccs,via:"proxy"}; return CP_CFG; } }catch(e){}
+  if(!force){ CP_CFG={...CP_FALLBACK,via:"reserva"}; return CP_CFG; }
+  throw new Error("sem chaves CP");
+}
+function cpHeaders(c){ return {"x-api-key":c.key,"x-cp-connect-id":c.id,"x-cp-connect-secret":c.sec,"Accept":"application/json"}; }
+async function cpTimetable(cfg,id,data){
+  const url=c=>c.url+`/stations/${id}/timetable/${data}`;
+  try{ return await (await fetchT(url(cfg),12000,null,{headers:cpHeaders(cfg)})).json(); }
+  catch(e){
+    if(/^HTTP (401|403)/.test(e.message)){ const fresh=await cpConfig(true); return await (await fetchT(url(fresh),12000,null,{headers:cpHeaders(fresh)})).json(); }
+    throw e;
+  }
+}
+function min2hm(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
+function hojeMais(dias){ return new Date(Date.now()-new Date().getTimezoneOffset()*60000+dias*86400000).toISOString().slice(0,10); }
+async function atualizaComboios(){
+  if(trainBusy) return; trainBusy=true;
+  const st=document.getElementById("trainStatus");
+  st.innerHTML='<span class="live-dot dot-y"></span><span class="spin">↻</span> A pedir chegadas à CP…';
+  try{
+    const cfg=await cpConfig(); const hoje=hojeISO(), agoraMin=hm2min(horaHM());
+    const inWin=t=>{ const d=(hm2min(t)-agoraMin+1440)%1440; return d<=45||d>=1430; }; // −10..+45 min, atravessa a meia-noite
+    const res=await Promise.allSettled(CP_STATIONS.map(async (s)=>{
+      const j=await cpTimetable(cfg,s.id,hoje); const stops=j.stationStops||[];
+      const ch=stops.filter(x=>x.arrivalTime&&inWin(x.arrivalTime)).sort((a,b)=>a.arrivalTime<b.arrivalTime?-1:1);
+      const byDist=(a,b)=>((hm2min(a.arrivalTime)-agoraMin+1440)%1440)-((hm2min(b.arrivalTime)-agoraMin+1440)%1440);
+      const fut=stops.filter(x=>x.arrivalTime&&((hm2min(x.arrivalTime)-agoraMin+1440)%1440)<=720).sort(byDist);
+      return {id:s.id,n45:ch.length,list:ch.slice(0,3).map(x=>({h:x.arrivalTime,org:x.trainOrigin?x.trainOrigin.designation:"?",at:x.delay})),nextH:fut.length?fut[0].arrivalTime:null,total:stops.length,ts:Date.now()};
+    }));
+    res.forEach((r,i)=>{
+      if(r.status==="fulfilled"){ CHEG.trains[r.value.id]={n45:r.value.n45,list:r.value.list,nextH:r.value.nextH,total:r.value.total,ts:r.value.ts}; }
+      else{ const id=CP_STATIONS[i].id; CHEG.trains[id]={...(CHEG.trains[id]||{n45:0,list:[]}),err:String((r.reason&&r.reason.message)||r.reason||"falha de rede"),ts:Date.now()}; }
+    });
+    // Madrugada: se já não há nada hoje, procura a primeira chegada de amanhã
+    const semFut=CP_STATIONS.filter(s=>{ const t=CHEG.trains[s.id]; return t&&!t.nextH&&!t.err; });
+    if(semFut.length){
+      const amanha=hojeMais(1);
+      const res2=await Promise.allSettled(semFut.map(async s=>{
+        const j=await cpTimetable(await cpConfig(),s.id,amanha);
+        const st2=((j.stationStops||[]).filter(x=>x.arrivalTime)).sort((a,b)=>a.arrivalTime<b.arrivalTime?-1:1);
+        return {id:s.id,nextH:st2.length?st2[0].arrivalTime+" (+1)":null};
+      }));
+      res2.forEach(r=>{ if(r.status==="fulfilled"&&r.value.nextH&&CHEG.trains[r.value.id]) CHEG.trains[r.value.id].nextH=r.value.nextH; });
+    }
+    saveCheg(); renderCheg();
+  }finally{ trainBusy=false; }
+}
+function plusMin(hm,m){ const [h,mn]=hm.split(":").map(Number); const d=new Date(); d.setHours(h,mn+m,0,0); return d.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}); }
+function hm2min(hm){ const [h,m]=String(hm).split(":").map(Number); return h*60+m; }
+
+/* --- Bónus de procura por praça --- */
+function bonusProcura(nome){
+  const n=norm(nome); let f=1; const tags=[];
+  const a=CHEG.air;
+  if(a&&a.aprox!=null&&AIR_KEYS.some(k=>n.includes(k))){ const b=Math.min(1,a.aprox/5)*0.8; if(b>0.02){ f*=1+b; tags.push(`✈️ ${a.aprox} a aterrar`); } }
+  for(const s of CP_STATIONS){
+    const t=CHEG.trains[s.id];
+    if(t&&t.n45>0&&s.keys.some(k=>n.includes(k))){ const b=Math.min(1,t.n45/4)*0.6; f*=1+b; tags.push(`🚂 ${t.n45} comboios`); }
+  }
+  const cn=CHEG.cruise||{nivel:0};
+  if(cn.nivel>0&&CRZ_KEYS.some(k=>n.includes(k))){ const b=[0,0.5,0.8,1.2][cn.nivel]||0; f*=1+b; tags.push("🛳️ navio no porto"); }
+  return {f,tags};
+}
+
+/* --- Render --- */
+function renderCheg(){
+  renderChegNums();
+  const a=CHEG.air;
+  const st=document.getElementById("airStatus");
+  if(a){ st.innerHTML=`<span class="live-dot ${Date.now()-a.ts<5*60000?"dot-g":"dot-y"}"></span>${a.total} aviões no raio · ${a.aprox} a aterrar · fonte ${esc(a.fonte)} · ${ha(a.ts)}.`; }
+  const al=document.getElementById("airList");
+  al.innerHTML=(a&&a.lista&&a.lista.length)? a.lista.map(o=>{ const esq=o.h?("prev. "+new Date(o.h*1000).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})):(o.alt!=null?(o.alt+" m"):"—"); const dir=o.h?"chegada programada":`${o.gs!=null?(o.gs+" km/h"):"—"}${o.d!=null?(" · "+o.d+" km"):""}`; return `<div class="flightrow"><span><b>${esc(o.cs)}</b> ${o.desc?"🛬":""}</span><span class="muted">${esq} · ${dir}</span></div>`; }).join("") : '<p class="muted">Sem lista de voos.</p>';
+  // comboios
+  const anyT=CP_STATIONS.some(s=>CHEG.trains[s.id]);
+  const jan=`${min2hm(hm2min(horaHM())-10)}–${min2hm(hm2min(horaHM())+45)}`;
+  const via=CP_CFG?CP_CFG.via:"—";
+  document.getElementById("trainStatus").innerHTML=anyT
+    ? `<span class="live-dot dot-g"></span>Chegadas na janela ${jan} (hora · origem · atraso) · chaves: ${esc(via)}.`
+    : '<span class="live-dot dot-w"></span>Ainda sem dados — prima «Atualizar comboios».';
+  document.getElementById("trainRows").innerHTML=CP_STATIONS.map(s=>{
+    const t=CHEG.trains[s.id];
+    const prox=(t&&t.list&&t.list.length)? t.list.map(x=>`<div class="flightrow"><span><b>${x.h}</b> · ${esc(x.org)}</span><span class="muted">${x.at==null?"":(x.at>0?`+${x.at} min ⚠️`:"a horas ✔")}</span></div>`).join("") : (t&&t.nextH?`<div class="muted">Sem chegadas nos próximos 45 min — próxima hoje: <b>${t.nextH}</b>.</div>`:'<div class="muted">—</div>');
+    const diag=t?`<div class="muted">${t.total!=null?`${t.total} paragens hoje · `:""}atualizado ${ha(t.ts)}${t.err?` · <span style="color:var(--red)">erro: ${esc(t.err)}</span>`:""}</div>`:"";
+    return `<div class="stationrow"><div class="t">🚉 ${esc(s.nome)} ${t?`<span class="badge ${t.n45>0?"g":""}">${t.n45} chegadas</span>`:""}</div>${prox}${diag}</div>`;
+  }).join("");
+  // cruzeiro
+  document.getElementById("selCruise").value=String((CHEG.cruise||{nivel:0}).nivel||0);
+  const cn=(CHEG.cruise||{}).nivel||0;
+  document.getElementById("cruiseHint").textContent=["","Pequeno movimento extra na zona ribeirinha.","Bom reforço: vá para Jardim do Tabaco / Santa Apolónia / Terreiro do Paço.","Pico de cruzeiros: a zona ribeirinha é prioritária hoje."][cn];
+  // resumo
+  const parts=[];
+  if(a) parts.push(`✈️ ${a.aprox} a aterrar`);
+  const tch=CP_STATIONS.filter(s=>CHEG.trains[s.id]&&CHEG.trains[s.id].n45>0);
+  if(tch.length) parts.push("🚂 "+tch.map(s=>`${s.nome.split(" ").pop()} ${CHEG.trains[s.id].n45}`).join(" · "));
+  if(cn>0) parts.push("🛳️ navio no porto");
+  document.getElementById("resumoCheg").innerHTML=parts.length? ("<b>Procura agora:</b> "+esc(parts.join(" · "))+" — já a contar no ranking «Ir para».") : "Sem sinais de procura de momento — o ranking usa só as suas leituras. Atualize acima.";
+}
+function refreshChegSePreciso(){
+  if(!CHEG.air||Date.now()-CHEG.air.ts>3*60000) atualizaVoos();
+  const tts=Object.values(CHEG.trains||{}); const newest=tts.length?Math.max(...tts.map(t=>t.ts||0)):0;
+  if(!tts.length||Date.now()-newest>10*60000) atualizaComboios();
+}
+document.getElementById("btnAirUpd").onclick=()=>atualizaVoos();
+document.getElementById("btnTrainUpd").onclick=()=>atualizaComboios();
+document.getElementById("btnTrainTest").onclick=async()=>{
+  const box=document.getElementById("trainTest"); box.innerHTML="A testar…";
+  const lin=[];
+  const step=async(n,fn)=>{ const t0=Date.now(); try{ const r=await fn(); lin.push(`✔️ ${n} (${Date.now()-t0} ms): ${r}`); return r; }catch(e){ lin.push(`❌ ${n}: ${e.message}`); return null; } };
+  await step("1) fe-config direto",()=>fetchT("https://www.cp.pt/fe-config.json",6000).then(r=>r.json()).then(j=>j.travelApiKey?"chave obtida":"sem chave"));
+  const p=await step("2) fe-config via proxy",()=>fetchT("https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.cp.pt/fe-config.json"),12000).then(r=>r.json()).then(j=>{ if(!j.travelApiKey) throw new Error("sem chave"); return j; }));
+  const cfg=p?{url:p.travelApiUrl,key:p.travelApiKey,id:p.xcck,sec:p.xccs}:{...CP_FALLBACK};
+  await step("3) horários Oriente de hoje",()=>fetchT(cfg.url+"/stations/94-31039/timetable/"+hojeISO(),15000,null,{headers:cpHeaders(cfg)}).then(r=>r.json()).then(j=>((j.stationStops||[]).length)+" paragens"));
+  box.innerHTML=lin.map(esc).join("<br>");
+};
+document.getElementById("selCruise").onchange=(e)=>{ CHEG.cruise={nivel:parseInt(e.target.value,10)||0,data:hojeISO()}; saveCheg(); renderCheg(); renderRec(); toast("Cruzeiro atualizado ✔ — ranking ajustado"); };
+setInterval(()=>{ if(!document.hidden&&!document.getElementById("tab-cheg").hidden) atualizaVoos(); },120000);
+setInterval(()=>{ if(!document.hidden&&!document.getElementById("tab-cheg").hidden) atualizaComboios(); },300000);
+
+/* ===== init ===== */
+refreshSelects(); renderPracas(); renderRec(); renderReg(); renderCheg();
+document.querySelector('footer.tabbar button[data-tab="tab-pracas"]').addEventListener("click",renderPracas);
+</script>
+</body>
+</html>
