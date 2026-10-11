@@ -692,6 +692,29 @@ function matchPracaId(nome){
   }
   return best;
 }
+// Quantas praças conhecidas distintas aparecem neste texto? (deteta ecrãs de
+// pesquisa/lista com vários nomes — nesses, atribuir "a mais comprida" falha.)
+function pracasNoTexto(txt){
+  const T=norm(String(txt||""));
+  let n=0;
+  for(const p of (S.pracas||[])){
+    const nm=norm(p.nome);
+    if(nm.length>=4&&T.includes(nm)) n++;
+  }
+  return n;
+}
+// Casa nome lido com praça conhecida (exata → tokens) ou cria-a (só de ecrãs
+// de lista, onde nome+número vêm estruturados — nunca de texto corrido).
+function matchOuCria(nome){
+  const m1=matchPracaId(nome);
+  if(m1) return {id:m1.id,nome:m1.nome,nova:false};
+  const m2=pracaPorToken(nome);
+  if(m2) return {id:m2.id,nome:m2.nome,nova:false};
+  const np={id:uid(),nome:String(nome||"").trim().replace(/\s{2,}/g," ")};
+  S.pracas.push(np);
+  try{ refreshSelects(); renderPracas(); }catch{}
+  return {id:np.id,nome:np.nome,nova:true};
+}
 // Ecrã "lista de praças": guarda N leituras de uma vez (nome+distância+táxis+oc/15 por praça).
 function renderLista(info,box){
   const rows=info.lista.map(r=>({...r,match:matchPracaId(r.nome)}));
@@ -704,8 +727,9 @@ function renderLista(info,box){
     const fonte=document.getElementById("ocrFonte").value;
     let nNovas=0;
     for(const r of rows){
-      let pid=r.match?r.match.id:null;
-      if(!pid){ const np={id:uid(),nome:r.nome}; S.pracas.push(np); pid=np.id; nNovas++; }
+      let pid=r.match?r.match.id:null; let nm=r.match?r.match.nome:null;
+      if(!pid){ const tk=pracaPorToken(r.nome); if(tk){ pid=tk.id; nm=tk.nome; } }
+      if(!pid){ const np={id:uid(),nome:r.nome}; S.pracas.push(np); pid=np.id; nm=np.nome; nNovas++; }
       const reg={id:uid(),pracaId:pid,fonte,n:r.n,ts:Date.now(),metodo:"lista-auto",ecra:"lista",det:{distanciaM:r.dist}};
       reg.saidas15=r.saidas15;
       S.leituras.push(reg);
@@ -953,16 +977,22 @@ async function vigiaLer(url){
     if(info.lista&&info.lista.length){
       let nG=0; const novas=[];
       for(const r of info.lista){
-        const mt=matchPracaId(r.nome);
-        if(mt){ S.leituras.push({id:uid(),pracaId:mt.id,fonte,n:r.n,ts:Date.now(),metodo:"vigia-auto",ecra:"lista",saidas15:r.saidas15,det:{distanciaM:r.dist}}); nG++; }
-        else if(!VIG.vistas.has(norm(r.nome))){ VIG.vistas.add(norm(r.nome)); novas.push(r.nome); }
+        const mt=matchOuCria(r.nome);
+        if(mt.nova) novas.push(mt.nome);
+        S.leituras.push({id:uid(),pracaId:mt.id,fonte,n:r.n,ts:Date.now(),metodo:"vigia-auto",ecra:"lista",saidas15:r.saidas15,det:{distanciaM:r.dist}}); nG++;
       }
-      if(nG){ save(); vigLog(`📋 <b>Lista:</b> ${nG} praças atualizadas — ${info.lista.map(r=>`${esc(r.nome)} ${r.n}/${r.saidas15}`).join(" · ")}${novas.length?` <span class="muted">Novas ignoradas: ${novas.map(esc).join(", ")}.</span>`:""}`,true); }
+      if(nG){ save(); try{ renderRec(); }catch{} vigLog(`📋 <b>Lista:</b> ${nG} praças atualizadas — ${info.lista.map(r=>`${esc(r.nome)} ${r.n}/${r.saidas15}`).join(" · ")}${novas.length?` <span class="muted">Novas: ${novas.map(esc).join(", ")}.</span>`:""}`,true); }
       else vigLog(`Leitura #${VIG.n}: lista sem praças conhecidas (${info.lista.map(r=>esc(r.nome)).join(", ")}). Adicione-as no separador Praças.`);
       return;
     }
     // Praça 100% pelo nome no ecrã (Taxi-Link ou cabeçalho TaxiDigital) — faça scroll à vontade
     const mpV=pracaAuto(texto,info);
+    // Guarda anti-fantasma: se o ecrã mostra 2+ praças (pesquisa com vários
+    // nomes), não atribui à "mais comprida" — seria como os Arneiros vazios.
+    if(info.ecra!=="lista"&&(info.emEspera!=null||info.saidas15!=null)&&pracasNoTexto(texto)>=2){
+      vigLog(`Leitura #${VIG.n} ignorada — o ecrã mostra várias praças; abra só a fila de uma para contar. <span class="muted">Use a lista de praças ou escolha a praça no print.</span>`);
+      return;
+    }
     const pracaId=mpV?mpV.id:null;
     const ocupado=info.tdStatus&&info.tdStatus!=="LIVRE";
     if(ocupado){ vigLog(`Leitura #${VIG.n} ignorada — estado <b>${esc(info.tdStatus)}</b>, não é fila.`); return; }
@@ -1158,6 +1188,8 @@ async function cpTimetable(cfg,id,data){
   }
 }
 function min2hm(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
+// Janela −10..+45 min em torno de refMin; atravessa a meia-noite
+function emJanela(hm,refMin){ const d=(hm2min(hm)-refMin+1440)%1440; return d<=45||d>=1430; }
 function hojeMais(dias){ return new Date(Date.now()-new Date().getTimezoneOffset()*60000+dias*86400000).toISOString().slice(0,10); }
 async function atualizaComboios(){
   if(trainBusy) return; trainBusy=true;
@@ -1165,13 +1197,13 @@ async function atualizaComboios(){
   st.innerHTML='<span class="live-dot dot-y"></span><span class="spin">↻</span> A pedir chegadas à CP…';
   try{
     const cfg=await cpConfig(); const hoje=hojeISO(), agoraMin=hm2min(horaHM());
-    const inWin=t=>{ const d=(hm2min(t)-agoraMin+1440)%1440; return d<=45||d>=1430; }; // −10..+45 min, atravessa a meia-noite
+    const inWin=t=>emJanela(t,agoraMin);
     const res=await Promise.allSettled(CP_STATIONS.map(async (s)=>{
       const j=await cpTimetable(cfg,s.id,hoje); const stops=j.stationStops||[];
       const ch=stops.filter(x=>x.arrivalTime&&inWin(x.arrivalTime)).sort((a,b)=>a.arrivalTime<b.arrivalTime?-1:1);
       const byDist=(a,b)=>((hm2min(a.arrivalTime)-agoraMin+1440)%1440)-((hm2min(b.arrivalTime)-agoraMin+1440)%1440);
       const fut=stops.filter(x=>x.arrivalTime&&((hm2min(x.arrivalTime)-agoraMin+1440)%1440)<=720).sort(byDist);
-      return {id:s.id,n45:ch.length,list:ch.slice(0,3).map(x=>({h:x.arrivalTime,org:x.trainOrigin?x.trainOrigin.designation:"?",at:x.delay})),nextH:fut.length?fut[0].arrivalTime:null,total:stops.length,ts:Date.now()};
+      return {id:s.id,n45:ch.length,list:ch.slice(0,6).map(x=>({h:x.arrivalTime,org:x.trainOrigin?x.trainOrigin.designation:"?",at:x.delay})),nextH:fut.length?fut[0].arrivalTime:null,total:stops.length,ts:Date.now()};
     }));
     res.forEach((r,i)=>{
       if(r.status==="fulfilled"){ CHEG.trains[r.value.id]={n45:r.value.n45,list:r.value.list,nextH:r.value.nextH,total:r.value.total,ts:r.value.ts}; }
@@ -1225,9 +1257,12 @@ function renderCheg(){
     : '<span class="live-dot dot-w"></span>Ainda sem dados — prima «Atualizar comboios».';
   document.getElementById("trainRows").innerHTML=CP_STATIONS.map(s=>{
     const t=CHEG.trains[s.id];
-    const prox=(t&&t.list&&t.list.length)? t.list.map(x=>`<div class="flightrow"><span><b>${x.h}</b> · ${esc(x.org)}</span><span class="muted">${x.at==null?"":(x.at>0?`+${x.at} min ⚠️`:"a horas ✔")}</span></div>`).join("") : (t&&t.nextH?`<div class="muted">Sem chegadas nos próximos 45 min — próxima hoje: <b>${t.nextH}</b>.</div>`:'<div class="muted">—</div>');
+    // Filtra na HORA DE MOSTRAR (não na hora de buscar): o que já passou sai sozinho
+    const agoraMin=hm2min(horaHM());
+    const lista=(t&&t.list||[]).filter(x=>x.h&&emJanela(x.h,agoraMin));
+    const prox=lista.length? lista.slice(0,3).map(x=>`<div class="flightrow"><span><b>${x.h}</b> · ${esc(x.org)}</span><span class="muted">${x.at==null?"":(x.at>0?`+${x.at} min ⚠️`:"a horas ✔")}</span></div>`).join("") : (t&&t.nextH?`<div class="muted">Sem chegadas nos próximos 45 min — próxima hoje: <b>${t.nextH}</b>.</div>`:'<div class="muted">—</div>');
     const diag=t?`<div class="muted">${t.total!=null?`${t.total} paragens hoje · `:""}atualizado ${ha(t.ts)}${t.err?` · <span style="color:var(--red)">erro: ${esc(t.err)}</span>`:""}</div>`:"";
-    return `<div class="stationrow"><div class="t">🚉 ${esc(s.nome)} ${t?`<span class="badge ${t.n45>0?"g":""}">${t.n45} chegadas</span>`:""}</div>${prox}${diag}</div>`;
+    return `<div class="stationrow"><div class="t">🚉 ${esc(s.nome)} ${t?`<span class="badge ${lista.length>0?"g":""}">${lista.length} chegadas</span>`:""}</div>${prox}${diag}</div>`;
   }).join("");
   // cruzeiro (sempre automático — sem inserção manual)
   const cn=(CHEG.cruise||{}).nivel||0;
@@ -1238,8 +1273,9 @@ function renderCheg(){
   // resumo
   const parts=[];
   if(a) parts.push(`✈️ ${a.aprox} a aterrar`);
-  const tch=CP_STATIONS.filter(s=>CHEG.trains[s.id]&&CHEG.trains[s.id].n45>0);
-  if(tch.length) parts.push("🚂 "+tch.map(s=>`${s.nome.split(" ").pop()} ${CHEG.trains[s.id].n45}`).join(" · "));
+  const agoraMin2=hm2min(horaHM());
+  const tch=CP_STATIONS.filter(s=>{ const t=CHEG.trains[s.id]; return t&&(t.list||[]).some(x=>x.h&&emJanela(x.h,agoraMin2)); });
+  if(tch.length) parts.push("🚂 "+tch.map(s=>{ const t=CHEG.trains[s.id]; const n=(t.list||[]).filter(x=>x.h&&emJanela(x.h,agoraMin2)).length; return `${s.nome.split(" ").pop()} ${n}`; }).join(" · "));
   if(cn>0) parts.push("🛳️ navio no porto");
   document.getElementById("resumoCheg").innerHTML=parts.length? ("<b>Procura agora:</b> "+esc(parts.join(" · "))+" — já a contar no ranking «Ir para».") : "Sem sinais de procura de momento — o ranking usa só as suas leituras. Atualize acima.";
 }
@@ -1306,7 +1342,7 @@ refreshChegSePreciso(); // arranca a buscar em 2º plano
 try{
   if(window.TaxiNative){
     const sub=document.querySelector("header .sub");
-    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.3";
+    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.4";
     try{
       const b=document.getElementById("btnModoAntigo");
       if(b&&typeof window.TaxiNative.vigiaA11y==="function") b.hidden=false;
