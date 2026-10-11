@@ -147,7 +147,7 @@ class Bridge(activity: MainActivity) {
             if (!VigiaA11yService.ativo(a)) {
                 a.runOnUiThread {
                     try {
-                        Toast.makeText(a, "Ative 'Táxi Praças' na Acessibilidade e volte a carregar Iniciar.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(a, "Ative 'Táxi Praças' na Acessibilidade. Se 'restrita': info da app → ⋮ → permitir.", Toast.LENGTH_LONG).show()
                         a.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         })

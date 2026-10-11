@@ -31,7 +31,7 @@ object BubbleManager {
                 ctx.startActivity(i)
             }
         } catch (e: Exception) {
-            Toast.makeText(ctx, "Ative 'Sobrepor a outras apps' nas definições.", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, "Sobrepor: ative nas definições. Se 'restrita': info da app → ⋮ → permitir.", Toast.LENGTH_LONG).show()
         }
     }
 
