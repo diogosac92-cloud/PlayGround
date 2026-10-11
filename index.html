@@ -140,6 +140,10 @@ footer.tabbar button{font-size:10px;padding:6px 2px}
       </div>
       <p class="muted" id="vigStatus">Parada.</p>
       <p class="muted">Se o telemóvel desligar a vigia ao trocar de app: dê <b>Ignorar otimização de bateria</b> à app e cadeado nos recentes.</p>
+      <div class="row" style="margin-top:8px">
+        <button class="btn small dark" id="btnDiag">🩺 Diagnóstico — fotografar e enviar</button>
+      </div>
+      <div id="diagBox"></div>
       <video id="vigVideo" playsinline muted style="width:100%;border-radius:10px;margin-top:8px" hidden></video>
       <canvas id="vigCanvas" hidden></canvas>
       <div id="vigLog"></div>
@@ -874,6 +878,23 @@ function pararVigia(msg){
   vigStatus(msg||"Parada.");
 }
 document.getElementById("btnVigiaStop").onclick=()=>{ pararVigia(); toast("Vigia parada"); };
+document.getElementById("btnDiag").onclick=()=>{
+  const box=document.getElementById("diagBox");
+  try{
+    if(!window.TaxiNative||typeof window.TaxiNative.diag!=="function"){ box.innerHTML='<p class="muted">Diagnóstico só na app instalada.</p>'; return; }
+    const d=JSON.parse(window.TaxiNative.diag());
+    const sn=v=>v?'<b style="color:var(--green)">SIM ✔</b>':'<b style="color:var(--red)">NÃO ✘</b>';
+    box.innerHTML=`<div class="stationrow"><div class="t">🩺 Diagnóstico — fotografe este quadro</div>
+    <div class="flightrow"><span>Android</span><span><b>${esc(d.android||"?")}</b></span></div>
+    <div class="flightrow"><span>WebView Chrome</span><span><b>${esc(d.webview||"?")}</b></span></div>
+    <div class="flightrow"><span>Sobrepor (mini)</span><span>${sn(d.overlay)}</span></div>
+    <div class="flightrow"><span>Acesso utilização</span><span>${sn(d.uso)}</span></div>
+    <div class="flightrow"><span>Bateria ignorada</span><span>${sn(d.bateria)}</span></div>
+    <div class="flightrow"><span>Notificações</span><span>${sn(d.notif)}</span></div>
+    <div class="flightrow"><span>Vigia a correr</span><span>${sn(d.vigia)}</span></div>
+    ${d.crash?`<div class="warn" style="margin-top:8px"><b>Último crash:</b><br><small>${esc(d.crash)}</small></div>`:'<div class="muted">Sem crash registado.</div>'}</div>`;
+  }catch(e){ box.innerHTML='<div class="warn">Falha: '+esc(e.message)+'</div>'; }
+};
 async function vigTick(){
   if(!VIG.on||VIG.busy) return;
   const v=document.getElementById("vigVideo");

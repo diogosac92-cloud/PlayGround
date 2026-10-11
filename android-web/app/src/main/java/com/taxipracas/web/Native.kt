@@ -2,6 +2,7 @@ package com.taxipracas.web
 
 import android.app.Activity
 import android.app.AlarmManager
+import android.app.AppOpsManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -14,6 +15,8 @@ import android.media.ToneGenerator
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.os.Process
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
@@ -73,6 +76,52 @@ class Bridge(activity: MainActivity) {
     @JavascriptInterface
     fun isWatching(): Boolean {
         return try { CaptureService.aCorrer } catch (e: Exception) { false }
+    }
+
+    // Diagnóstico do aparelho (a app mostra; o utilizador fotografa e envia).
+    @JavascriptInterface
+    fun diag(): String {
+        return try {
+            val app = act()?.applicationContext ?: return "{}"
+            val o = JSONObject()
+            o.put("android", Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")")
+            o.put("webview", chromeVersao(app))
+            o.put("overlay", Settings.canDrawOverlays(app))
+            o.put("uso", usoOk(app))
+            o.put("bateria", bateriaOk(app))
+            o.put("notif", notifOk(app))
+            o.put("vigia", try { CaptureService.aCorrer } catch (e: Exception) { false })
+            o.put("crash", app.getSharedPreferences("crashlog", Context.MODE_PRIVATE).getString("trace", null))
+            o.toString()
+        } catch (e: Exception) { "{}" }
+    }
+
+    private fun chromeVersao(app: Context): String {
+        return try {
+            val ua = android.webkit.WebSettings.getDefaultUserAgent(app) ?: ""
+            Regex("Chrome/([\\d.]+)").find(ua)?.groupValues?.get(1) ?: ua.take(60)
+        } catch (e: Exception) { "?" }
+    }
+
+    private fun usoOk(app: Context): Boolean {
+        return try {
+            val ao = app.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            ao.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), app.packageName) ==
+                AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) { false }
+    }
+
+    private fun bateriaOk(app: Context): Boolean {
+        return try {
+            val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+            pm.isIgnoringBatteryOptimizations(app.packageName)
+        } catch (e: Exception) { false }
+    }
+
+    private fun notifOk(app: Context): Boolean {
+        return try {
+            app.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() == true
+        } catch (e: Exception) { false }
     }
 
     // Mini nativo (bolha sobre as outras apps). Sem permissão, abre as definições.

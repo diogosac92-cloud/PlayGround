@@ -9,6 +9,7 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebChromeClient.FileChooserParams
@@ -31,18 +32,54 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CrashLog.install(this)
+        montar()
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            try { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7) } catch (e: Exception) { }
+        }
+        CrashLog.mostrarSeHouver(this)
+    }
+
+    private fun montar() {
         web = WebView(this)
-        setContentView(web)
+        configurar(web)
         WebViewHolder.wv = web
-        val s = web.settings
+        setContentView(web)
+        web.loadUrl("file:///android_asset/taxi.html")
+    }
+
+    // Se o motor da página morrer (página em branco), recria sozinho em vez de ficar morto.
+    fun recarregar() {
+        runOnUiThread {
+            try { Toast.makeText(this, "O motor da página falhou — a recarregar.", Toast.LENGTH_LONG).show() }
+            catch (e: Exception) { }
+            try {
+                val velha = try { web } catch (e: Exception) { null }
+                web = WebView(this)
+                configurar(web)
+                WebViewHolder.wv = web
+                setContentView(web)
+                web.loadUrl("file:///android_asset/taxi.html")
+                try { velha?.destroy() } catch (e: Exception) { }
+            } catch (e: Exception) { }
+        }
+    }
+
+    private fun configurar(w: WebView) {
+        val s = w.settings
         s.javaScriptEnabled = true
         s.domStorageEnabled = true
         s.databaseEnabled = true
         s.loadWithOverviewMode = true
         s.useWideViewPort = true
         s.mediaPlaybackRequiresUserGesture = false
-        web.webViewClient = WebViewClient()
-        web.webChromeClient = object : WebChromeClient() {
+        w.webViewClient = object : WebViewClient() {
+            override fun onRenderProcessGone(v: WebView, detail: RenderProcessGoneDetail): Boolean {
+                try { recarregar() } catch (e: Exception) { }
+                return true
+            }
+        }
+        w.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
                 v: WebView, cb: ValueCallback<Array<Uri>>, p: FileChooserParams
             ): Boolean {
@@ -54,13 +91,7 @@ class MainActivity : Activity() {
                 } catch (e: Exception) { fileCb = null; false }
             }
         }
-        web.addJavascriptInterface(Bridge(this), "TaxiNative")
-        web.loadUrl("file:///android_asset/taxi.html")
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            try { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7) } catch (e: Exception) { }
-        }
-        CrashLog.mostrarSeHouver(this)
+        w.addJavascriptInterface(Bridge(this), "TaxiNative")
     }
 
     fun pedirCaptura() {
