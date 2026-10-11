@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.taxipracas.app.ParserTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-11T14:58:58" hostname="runnervmmprz5" time="0.119">
+  <properties/>
+  <testcase name="ecraLista_TaxiLink" classname="com.taxipracas.app.ParserTest" time="0.047"/>
+  <testcase name="ecraNaPraca_TaxiLink" classname="com.taxipracas.app.ParserTest" time="0.03"/>
+  <testcase name="ranking_fundeDuasApps" classname="com.taxipracas.app.ParserTest" time="0.006"/>
+  <testcase name="ecraPrincipal_TaxiDigital" classname="com.taxipracas.app.ParserTest" time="0.012"/>
+  <testcase name="marcacoes_TaxiLink" classname="com.taxipracas.app.ParserTest" time="0.019"/>
+  <testcase name="distFator_curva" classname="com.taxipracas.app.ParserTest" time="0.0"/>
+  <testcase name="ecraPesquisa_TaxiLink" classname="com.taxipracas.app.ParserTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
