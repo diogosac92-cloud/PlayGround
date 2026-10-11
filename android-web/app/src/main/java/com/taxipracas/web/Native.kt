@@ -44,6 +44,7 @@ class Bridge(activity: MainActivity) {
     @JavascriptInterface
     fun stopWatch() {
         try { act()?.stopService(Intent(act(), CaptureService::class.java)) } catch (e: Exception) { }
+        try { VigiaA11yService.inst?.parar() } catch (e: Exception) { }
     }
 
     @JavascriptInterface
@@ -72,10 +73,10 @@ class Bridge(activity: MainActivity) {
         } catch (e: Exception) { }
     }
 
-    // A vigia nativa está mesmo a correr?
+    // A vigia nativa está mesmo a correr (qualquer dos dois modos)?
     @JavascriptInterface
     fun isWatching(): Boolean {
-        return try { CaptureService.aCorrer } catch (e: Exception) { false }
+        return try { CaptureService.aCorrer || VigiaA11yService.vigiar } catch (e: Exception) { false }
     }
 
     // Diagnóstico do aparelho (a app mostra; o utilizador fotografa e envia).
@@ -90,7 +91,8 @@ class Bridge(activity: MainActivity) {
             o.put("uso", usoOk(app))
             o.put("bateria", bateriaOk(app))
             o.put("notif", notifOk(app))
-            o.put("vigia", try { CaptureService.aCorrer } catch (e: Exception) { false })
+            o.put("vigia", try { CaptureService.aCorrer || VigiaA11yService.vigiar } catch (e: Exception) { false })
+            o.put("acess", try { VigiaA11yService.ativo(app) } catch (e: Exception) { false })
             o.put("crash", app.getSharedPreferences("crashlog", Context.MODE_PRIVATE).getString("trace", null))
             o.toString()
         } catch (e: Exception) { "{}" }
@@ -134,6 +136,29 @@ class Bridge(activity: MainActivity) {
                 else BubbleManager.show(a, l1, l2)
             } catch (e: Exception) { }
         }
+    }
+
+    // Vigia por Acessibilidade (sem diálogo de gravação). Se o serviço não
+    // estiver ativo nas Definições, abre-as e devolve false para o JS guiar.
+    @JavascriptInterface
+    fun vigiaA11y(): Boolean {
+        return try {
+            val a = act() ?: return false
+            if (!VigiaA11yService.ativo(a)) {
+                a.runOnUiThread {
+                    try {
+                        Toast.makeText(a, "Ative 'Táxi Praças' na Acessibilidade e volte a carregar Iniciar.", Toast.LENGTH_LONG).show()
+                        a.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        })
+                    } catch (e: Exception) { }
+                }
+                false
+            } else {
+                VigiaA11yService.inst?.comecar()
+                true
+            }
+        } catch (e: Exception) { false }
     }
 
     // HTTP sem CORS (a WebView bloqueia cp.pt/adsb por falta de cabeçalhos).

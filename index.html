@@ -142,6 +142,7 @@ footer.tabbar button{font-size:10px;padding:6px 2px}
       <p class="muted">Se o telemóvel desligar a vigia ao trocar de app: dê <b>Ignorar otimização de bateria</b> à app e cadeado nos recentes.</p>
       <div class="row" style="margin-top:8px">
         <button class="btn small dark" id="btnDiag">🩺 Diagnóstico — fotografar e enviar</button>
+        <button class="btn small dark" id="btnModoAntigo" hidden>Modo antigo</button>
       </div>
       <div id="diagBox"></div>
       <video id="vigVideo" playsinline muted style="width:100%;border-radius:10px;margin-top:8px" hidden></video>
@@ -830,15 +831,19 @@ function vigStatus(t){ document.getElementById("vigStatus").innerHTML=t; }
 document.getElementById("btnVigiaStart").onclick=async()=>{
   if(VIG.on) return;
   desbloquearSom();
-  // Na app instalada a captura vem do Android (MediaProjection) — sem partilha do navegador.
-  // O verde "A vigiar" só aparece quando o Android confirmar (window.__vigiaNativa(true)).
+  // Na app instalada usa Acessibilidade (sem diálogo de gravação). O verde
+  // "A vigiar" só aparece quando o Android confirmar (window.__vigiaNativa(true)).
   if(window.TaxiNative){
-    try{
-      window.TaxiNative.startWatch();
-      document.getElementById("vigVideo").hidden=true;
-      vigStatus('<span class="live-dot dot-y"></span>A pedir autorização… prima <b>Começar agora</b>.');
-      toast("Autorize a captura para a vigia arrancar");
-    }catch(e){ vigStatus("Não consegui ligar a vigia nativa."); }
+    if(typeof window.TaxiNative.vigiaA11y==="function"){
+      try{
+        document.getElementById("vigVideo").hidden=true;
+        let ok=false; try{ ok=!!window.TaxiNative.vigiaA11y(); }catch(e){}
+        if(ok){ vigStatus('<span class="live-dot dot-y"></span>A arrancar a vigia…'); }
+        else{ vigStatus('<span class="live-dot dot-y"></span>Ative <b>Táxi Praças</b> em <b>Definições → Acessibilidade</b> e volte a carregar <b>Iniciar</b>.'); }
+      }catch(e){ vigStatus("Não consegui ligar a vigia."); }
+      return;
+    }
+    modoAntigo();
     return;
   }
   const v=document.getElementById("vigVideo");
@@ -866,6 +871,14 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
       vigStatus('Não consegui ligar a vigia ('+esc(n||"erro")+'). Use «Ler um print» abaixo.');
   }
 };
+function modoAntigo(){
+  try{
+    window.TaxiNative.startWatch();
+    document.getElementById("vigVideo").hidden=true;
+    vigStatus('<span class="live-dot dot-y"></span>A pedir autorização… prima <b>Começar agora</b>.');
+    toast("Autorize a captura para a vigia arrancar");
+  }catch(e){ vigStatus("Não consegui ligar a vigia nativa."); }
+}
 function pararVigia(msg){
   VIG.on=false; clearInterval(VIG.timer); VIG.timer=null;
   try{ localStorage.removeItem("vigiaIntent"); }catch{}
@@ -878,6 +891,7 @@ function pararVigia(msg){
   vigStatus(msg||"Parada.");
 }
 document.getElementById("btnVigiaStop").onclick=()=>{ pararVigia(); toast("Vigia parada"); };
+document.getElementById("btnModoAntigo").onclick=()=>{ if(VIG.on) return; desbloquearSom(); modoAntigo(); };
 document.getElementById("btnDiag").onclick=()=>{
   const box=document.getElementById("diagBox");
   try{
@@ -891,6 +905,7 @@ document.getElementById("btnDiag").onclick=()=>{
     <div class="flightrow"><span>Acesso utilização</span><span>${sn(d.uso)}</span></div>
     <div class="flightrow"><span>Bateria ignorada</span><span>${sn(d.bateria)}</span></div>
     <div class="flightrow"><span>Notificações</span><span>${sn(d.notif)}</span></div>
+    <div class="flightrow"><span>Acessibilidade</span><span>${sn(d.acess)}</span></div>
     <div class="flightrow"><span>Vigia a correr</span><span>${sn(d.vigia)}</span></div>
     ${d.crash?`<div class="warn" style="margin-top:8px"><b>Último crash:</b><br><small>${esc(d.crash)}</small></div>`:'<div class="muted">Sem crash registado.</div>'}</div>`;
   }catch(e){ box.innerHTML='<div class="warn">Falha: '+esc(e.message)+'</div>'; }
@@ -1291,7 +1306,11 @@ refreshChegSePreciso(); // arranca a buscar em 2º plano
 try{
   if(window.TaxiNative){
     const sub=document.querySelector("header .sub");
-    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.1";
+    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.2";
+    try{
+      const b=document.getElementById("btnModoAntigo");
+      if(b&&typeof window.TaxiNative.vigiaA11y==="function") b.hidden=false;
+    }catch(e){}
     if(localStorage.getItem("vigiaIntent")==="1"){
       let viva=false;
       try{ viva=!!window.TaxiNative.isWatching(); }catch(e){}

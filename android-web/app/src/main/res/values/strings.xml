@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Táxi Praças</string>
+    <string name="vigia_desc">Lê o ecrã da Taxi-Link sozinha, de 30 em 30 segundos, para contar os táxis em praça.</string>
 </resources>
