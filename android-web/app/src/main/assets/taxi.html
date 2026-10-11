@@ -535,6 +535,12 @@ function extrairInfo(txt){
     const toks=(ln.match(/\d+/g)||[]).map(Number);
     if(toks.length===2&&toks[0]>=1&&toks[0]<=60&&toks[1]<=99999) fila.push({pos:toks[0],lic:String(toks[1])});
   }
+  // Anti-lixo: muitas linhas só valem se as posições forem quase seguidas
+  // (fila real é 1,2,3,…; OCR avariado gera pares ao acaso e somas absurdas).
+  if(fila.length>8){
+    const poss=[...new Set(fila.map(f=>f.pos))].sort((a,b)=>a-b);
+    if((poss[poss.length-1]-poss[0]+1)>poss.length+2) fila.length=0;
+  }
   const tempos=[...(raw.match(/\b\d{1,3}\s?min\b/gi)||[]),...(raw.match(/\b\d{1,2}:\d{2}\b/g)||[])].filter(t=>!/^15\s?min$/i.test(t)).slice(0,8);
   const nums=(raw.match(/\d{1,3}/g)||[]).map(Number).filter(n=>n<=500);
   const sugerido=licencas.length?licencas.length:(placas.length?placas.length:(nums.length?nums[0]:null));
@@ -577,11 +583,11 @@ function extrairTaxilink(txt){
   ];
   for(const re of pats){ const m=T.match(re); if(m){ const v=parseInt(m[1],10); if(!isNaN(v)&&v<=500){ saidas15=v; break; } } }
   const base=extrairInfo(txt);
-  // carros em espera: 1º nº de licenças distintas (o que as apps mostram),
-  // 2º contagem por matrícula, 3º "posição N" (N-1 à frente + eu = N);
+  // carros em espera: 1º a posição exata (N-1 à frente + eu = N carros),
+  // 2º nº de licenças distintas, 3º linhas da fila, 4º matrículas;
   // senão o primeiro número que não seja o rótulo "15 MIN" nem as saídas.
   // Se não houver, fica null (não inventa).
-  let emEspera=base.licencas.length||base.fila.length||base.placas.length||base.posicao||base.tdPos||null;
+  let emEspera=base.posicao||base.tdPos||base.licencas.length||base.fila.length||base.placas.length||null;
   if(emEspera==null){
     // Fallback: primeiro número que não seja o rótulo "15 MIN", as saídas,
     // a distância ("a 4991 metros") nem horas ("00:36") — para nunca os confundir com carros
@@ -589,7 +595,37 @@ function extrairTaxilink(txt){
     const fb=(Tnum.match(/\d{1,3}/g)||[]).map(Number).filter(n=>n<=500&&n!==15&&n!==saidas15);
     emEspera=fb.length?fb[0]:null;
   }
-  return {...base,emEspera,saidas15,ecra:detetarEcra(txt),lista:extrairLista(txt)};
+  return {...base,emEspera,saidas15,ecra:detetarEcra(txt),lista:extrairLista(txt),zonas:extrairZonas(txt)};
+}
+// Grelha ZONAS da TaxiDigital: linhas "NOME ... N" (N = táxis na zona).
+// Vale para códigos "PT.X" e nomes simples ("VFX", "AMD P IKEA").
+// Só emparelha nome+número na MESMA linha; ignora cabeçalhos (TX 20 30 40),
+// horas, bateria, botão PARAR, distâncias e linhas de contagem Taxi-Link.
+// Zonas MAFRA são excluídas (fora da cidade).
+function extrairZonas(txt){
+  const rows=[];
+  for(const ln0 of String(txt||"").split(/\n+/)){
+    const ln=ln0.trim();
+    if(!ln) continue;
+    if(/TX/i.test(ln)&&/\b(20|30|40)\b/.test(ln)) continue;
+    if(/\d{1,2}:\d{2}/.test(ln)) continue;
+    if(/PARAR/i.test(ln)) continue;
+    if(/a\s+[\d.]+\s*metros/i.test(ln)) continue;
+    if(/t[aá]x[i1l]s/i.test(ln)) continue;
+    if(/\bmin\b/i.test(ln)) continue;
+    if(/%/.test(ln)) continue;
+    const pm=ln.match(/^(PT\.\s*)?([A-ZÀ-Ú][A-ZÀ-Ú0-9 .\-]{1,40}?)\s+(\d{1,3})\s*$/);
+    if(!pm) continue;
+    const nome=((pm[1]||"")+pm[2]).trim().replace(/\s{2,}/g," ");
+    if(nome.length<3) continue;
+    if(/^(TX|ZONAS?|OFERTAS?|CONCELHO)$/i.test(nome)) continue;
+    if(/MAFRA/i.test(nome)) continue;
+    const n=parseInt(pm[3],10);
+    if(!(n>=0&&n<=500)) continue;
+    rows.push({nome,n});
+  }
+  const seen=new Set();
+  return rows.filter(r=>{ const k=norm(r.nome); if(seen.has(k)) return false; seen.add(k); return true; });
 }
 // Ecrã "lista de praças": cada praça traz "A B táxis oc/15" (A = táxis, B = ocupados/15min)
 // mais o nome e "a DIST metros", possivelmente em linhas separadas.
@@ -757,14 +793,33 @@ function renderLista(info,box){
     showTab("tab-rec");
   };
 }
+// Ecrã de zonas TaxiDigital: guarda N leituras de uma vez (zona + táxis).
+function renderZonas(info,box){
+  const rows=info.zonas.map(r=>({...r,match:matchPracaId(r.nome)||pracaPorToken(r.nome)}));
+  box.innerHTML=`<div class="ok"><b>🤖 Zonas TaxiDigital — ${rows.length} zonas</b> ${ecraTag("lista")}
+  <table><tr><th>Zona</th><th>Táxis</th></tr>${rows.map(r=>`<tr><td>${esc(r.match?r.match.nome:r.nome)}${r.match?"":" ❓"}</td><td><b>${r.n}</b></td></tr>`).join("")}</table>
+  <div class="row" style="margin-top:10px"><button class="btn" id="btnZonasGuardar">Guardar ${rows.length} zonas — 1 toque</button></div></div>`;
+  document.getElementById("btnZonasGuardar").onclick=()=>{
+    const fonte=document.getElementById("ocrFonte").value;
+    let nNovas=0;
+    for(const r of rows){
+      const mt=matchOuCria(r.nome); if(mt.nova) nNovas++;
+      S.leituras.push({id:uid(),pracaId:mt.id,fonte,n:r.n,ts:Date.now(),metodo:"zonas-auto",ecra:"lista",det:{}});
+    }
+    save(); refreshSelects(); renderPracas(); renderRec();
+    toast(`Zonas guardadas ✔ (${rows.length}${nNovas?`, ${nNovas} novas`:""})`);
+    showTab("tab-rec");
+  };
+}
 function renderAuto(info){
   const box=document.getElementById("ocrAuto");
   if(info.tdStatus&&info.tdStatus!=="LIVRE"){ box.innerHTML=`<div class="warn">Estado <b>${esc(info.tdStatus)}</b> — não é fila, leitura ignorada. Mude para Livre para ler a posição.</div>`; return; }
   if(info.sugerido==null&&info.saidas15==null&&!(info.lista&&info.lista.length)){ box.innerHTML='<div class="warn">Não consegui ler carros, licenças nem tempos. Tente outro print mais nítido.</div>'; return; }
   if(info.lista&&info.lista.length){ renderLista(info,box); return; }
+  if(info.zonas&&info.zonas.length){ renderZonas(info,box); return; }
   const n=info.emEspera!=null?info.emEspera:info.sugerido;
   const contaTxt=info.licencas.length?info.licencas.length+" (por nº de licença)":(info.placas.length?info.placas.length+" (por matrícula)":(n!=null?n:"—"));
-  box.innerHTML=`<div class="ok"><b>🤖 Leitura automática</b> ${ecraTag(ecraFinal(info.ecra))}<br>🚕 Carros detetados: <b>${contaTxt}</b>${info.licencas.length?`<br><span>Licenças: ${info.licencas.map(esc).join(" · ")}</span>`:""}${(!info.licencas.length&&info.placas.length)?`<br><span>Matrículas: ${info.placas.map(esc).join(" · ")}</span>`:""}${(info.posicao!=null?info.posicao:info.tdPos)!=null?`<br><span>📍 A sua posição na fila: <b>${info.posicao!=null?info.posicao:info.tdPos}º</b></span>`:""}${info.tempoPraca?`<br><span>⏱️ Tempo em praça: <b>${esc(info.tempoPraca)}</b></span>`:""}${info.mesmaPrioridade!=null?`<br><span>🥇 Com a mesma prioridade: <b>${info.mesmaPrioridade}</b></span>`:""}${info.distanciaM!=null?`<br><span>📏 Distância até à praça: <b>${info.distanciaM} m</b></span>`:""}${info.saidas15!=null?`<br>📞 Taxi-Link: <b>${info.saidas15} saídas nos últimos 15 min</b> → ritmo ${(info.saidas15*4).toFixed(0)}/hora`:""}${info.tempos.length?`<br>⏱️ Tempos vistos: ${info.tempos.map(esc).join(" · ")}`:""}<div class="row" style="margin-top:10px"><button class="btn" id="btnAutoGuardar">Guardar${n!=null?`: ${n} carro(s)`:""} — 1 toque</button></div></div>`;
+  box.innerHTML=`<div class="ok"><b>🤖 Leitura automática</b> ${ecraTag(ecraFinal(info.ecra))}<br>🚕 Carros detetados: <b>${contaTxt}</b>${info.licencas.length?`<br><span>Licenças: ${info.licencas.map(esc).join(" · ")}</span>`:""}${(!info.licencas.length&&info.placas.length)?`<br><span>Matrículas: ${info.placas.map(esc).join(" · ")}</span>`:""}${(info.posicao!=null?info.posicao:info.tdPos)!=null?`<br><span>📍 A sua posição na fila: <b>${info.posicao!=null?info.posicao:info.tdPos}º</b></span>`:""}${info.tempoPraca?`<br><span>⏱️ Tempo em praça: <b>${esc(info.tempoPraca)}</b></span>`:""}${info.mesmaPrioridade!=null?`<br><span>🥇 Com a mesma prioridade: <b>${info.mesmaPrioridade}</b></span>`:""}${info.distanciaM!=null?`<br><span>📏 Distância até à praça: <b>${info.distanciaM} m</b></span>`:""}${info.saidas15!=null?`<br>📞 Taxi-Link: <b>${info.saidas15} saídas nos últimos 15 min</b> → ritmo ${(info.saidas15*4).toFixed(0)}/hora`:""}${info.tempos.length?`<br>⏱️ Tempos vistos: ${info.tempos.map(esc).join(" · ")}`:""}${(n!=null&&n>60)?`<br><span style="color:var(--red)"><b>⚠️ ${n} é muito alto — confirme no ecrã antes de guardar.</b></span>`:""}<div class="row" style="margin-top:10px"><button class="btn" id="btnAutoGuardar">Guardar${n!=null?`: ${n} carro(s)`:""} — 1 toque</button></div></div>`;
   document.getElementById("btnAutoGuardar").onclick=()=>{
     const pracaId=document.getElementById("ocrPraca").value;
     if(!pracaId) return alert("Escolha a praça em cima.");
@@ -991,6 +1046,17 @@ async function vigiaLer(url){
     // Marcações: qualquer ecrã pode trazer reservas — guarda e arma o alerta sonoro
     const mcsV=extrairMarcacoes(texto);
     if(mcsV.length){ const gM=guardarMarcacoes(mcsV,fonte); if(gM.n) vigLog(`📅 <b>${gM.n} marcação(ões)</b> guardada(s)${gM.pracas.length?` · novas praças: ${gM.pracas.map(esc).join(", ")}`:""} — alerta 20 min antes da queda, com o estado da praça.`,true); }
+    // Grelha ZONAS da TaxiDigital: uma leitura por zona (nome PT. + nº TX)
+    if(info.zonas&&info.zonas.length){
+      let nG=0; const novas=[];
+      for(const r of info.zonas){
+        const mt=matchOuCria(r.nome);
+        if(mt.nova) novas.push(mt.nome);
+        S.leituras.push({id:uid(),pracaId:mt.id,fonte,n:r.n,ts:Date.now(),metodo:"vigia-auto",ecra:"lista",det:{}}); nG++;
+      }
+      if(nG){ save(); try{ renderRec(); }catch{} vigLog(`🗺️ <b>Zonas:</b> ${nG} zonas atualizadas — ${info.zonas.map(r=>`${esc(r.nome)} ${r.n}`).join(" · ")}${novas.length?` <span class="muted">Novas: ${novas.map(esc).join(", ")}.</span>`:""}`,true); }
+      return;
+    }
     // Ecrã "lista de praças": atualiza todas as praças conhecidas de uma vez
     if(info.lista&&info.lista.length){
       let nG=0; const novas=[];
@@ -1360,7 +1426,7 @@ refreshChegSePreciso(); // arranca a buscar em 2º plano
 try{
   if(window.TaxiNative){
     const sub=document.querySelector("header .sub");
-    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.6";
+    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.7";
     try{
       const b=document.getElementById("btnModoAntigo");
       if(b&&typeof window.TaxiNative.vigiaA11y==="function") b.hidden=false;
