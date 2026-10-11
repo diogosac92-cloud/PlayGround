@@ -155,7 +155,9 @@ class Bridge(activity: MainActivity) {
                 }
                 false
             } else {
-                VigiaA11yService.inst?.comecar()
+                val i = VigiaA11yService.inst
+                if (i != null) i.comecar()
+                else VigiaA11yService.arranquePendente = true
                 true
             }
         } catch (e: Exception) { false }

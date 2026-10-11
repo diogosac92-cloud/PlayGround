@@ -25,13 +25,15 @@ class VigiaA11yService : AccessibilityService() {
     companion object {
         @Volatile var inst: VigiaA11yService? = null
         @Volatile var vigiar = false
+        @Volatile var arranquePendente = false
 
         fun ativo(ctx: Context): Boolean {
             return try {
                 val s = Settings.Secure.getString(
                     ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
                 ) ?: return false
-                s.contains(ctx.packageName + "/.VigiaA11yService", true)
+                // Cada entrada é "pacote/classeQualificada"; basta a nossa classe estar lá.
+                s.split(':').any { it.contains("VigiaA11yService") && it.contains(ctx.packageName) }
             } catch (e: Exception) { false }
         }
     }
@@ -47,6 +49,10 @@ class VigiaA11yService : AccessibilityService() {
 
     override fun onServiceConnected() {
         inst = this
+        if (arranquePendente) {
+            arranquePendente = false
+            try { comecar() } catch (e: Exception) { }
+        }
     }
 
     override fun onUnbind(intent: Intent?): Boolean {

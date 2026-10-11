@@ -838,7 +838,7 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
       try{
         document.getElementById("vigVideo").hidden=true;
         let ok=false; try{ ok=!!window.TaxiNative.vigiaA11y(); }catch(e){}
-        if(ok){ vigStatus('<span class="live-dot dot-y"></span>A arrancar a vigia…'); }
+        if(ok){ vigStatus('<span class="live-dot dot-y"></span>A arrancar a vigia…'); setTimeout(()=>{ if(!VIG.on) vigStatus('<span class="live-dot dot-y"></span>Ainda sem confirmação — volte a carregar <b>Iniciar</b>.'); },15000); }
         else{ vigStatus('<span class="live-dot dot-y"></span>Ative <b>Táxi Praças</b> em <b>Definições → Acessibilidade</b> e volte a carregar <b>Iniciar</b>.<br><span class="muted">Se disser <b>"definição restrita"</b>: Definições → Aplicações → Táxi Praças → menu <b>⋮</b> → <b>Permitir definições restritas</b>, e repita.</span>'); }
       }catch(e){ vigStatus("Não consegui ligar a vigia."); }
       return;
