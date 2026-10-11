@@ -540,13 +540,23 @@ function extrairInfo(txt){
   const sugerido=licencas.length?licencas.length:(placas.length?placas.length:(nums.length?nums[0]:null));
   // Cabeçalho TaxiDigital: "(CNTD) Livre PT.RIO JANEIRO 4" = estado + local + posição.
   // Horas ("14:56") e bateria ("63%") são removidas primeiro para não colarem ao número.
+  // O prefixo CNTD é opcional (por vezes o OCR não o apanha) e há mais estados.
   let tdStatus=null, tdLocal=null, tdPos=null;
   const TH=T.replace(/\d{1,2}:\d{2}/g," ").replace(/\d{1,3}\s*%/g," ");
-  const hd=TH.match(/\(?CNTD\)?\s*(LIVRE|OCUPADO|EM\s+SERVI[CÇ]O|AUSENTE|PAUSA)\s+([A-ZÀ-Ú0-9 .\-]{2,45})/);
+  const hd=TH.match(/(?:\(?CNTD\)?\s*)?(LIVRE|DISPON[IÍ]VEL|OCUPADO|EM\s+SERVI[CÇ]O|AUSENTE|PAUSA)\s+([A-ZÀ-Ú0-9 .\-]{2,45})/);
   if(hd){ tdStatus=hd[1].replace(/\s+/g," "); let loc=hd[2].split(/\s+(POSI[CÇ][AÃ]O|HIST[OÓ]RICO|ZONAS|DEFINA|COMUNICA|PENDENTES|OFERTAS)\b/)[0].trim();
     const pn=loc.match(/^(.*?)\s+(\d{1,3})$/);
     if(pn){ loc=pn[1].trim(); const pv=parseInt(pn[2],10); if(pv>=1&&pv<=500) tdPos=pv; }
     if(loc) tdLocal=loc;
+  }
+  // Fallback sem palavra de estado: código de local "PT.NOME" em qualquer lado
+  if(!tdLocal){
+    const pl=TH.match(/PT\.\s*([A-ZÀ-Ú][A-ZÀ-Ú0-9 .\-]{1,40}?)(?=\s{2,}|$|\n|  POSI|  HIST|  ZONAS|  DEFINA|  COMUNICA|  PENDENTES|  OFERTAS)/);
+    if(pl){ let loc=("PT."+pl[1]).trim().replace(/\s{2,}/g," ");
+      const pn2=loc.match(/^(.*?)\s+(\d{1,3})$/);
+      if(pn2){ loc=pn2[1].trim(); const pv=parseInt(pn2[2],10); if(pv>=1&&pv<=500) tdPos=pv; }
+      tdLocal=loc;
+    }
   }
   return {placas,licencas,posicao,tempoPraca,fila,mesmaPrioridade,distanciaM,tdStatus,tdLocal,tdPos,tempos,nums,sugerido};
 }
@@ -586,15 +596,21 @@ function extrairTaxilink(txt){
 // Agrupa por blocos: cada ocorrência de counts é dona do texto até às vizinhas.
 function extrairLista(txt){
   const src=String(txt||"");
-  const reC=/(\d{1,3})\s+(\d{1,3})\s*t[aá]xis\s*oc\s*\/\s*15/gi;
+  // Contagens "A B táxis oc/15" — tolerante a erros do OCR: 0↔O/U, táxis↔taxls,
+  // "oc/15"↔"ocl15"/"oc 15". A âncora "taxis oc 15" mantém a precisão.
+  const reC=/([0-9OU]{1,3})\s+([0-9OU]{1,3})\s*t[aá]x[i1l]s\s*[o0]c\s*[\/Il1|]?\s*15/gi;
+  const normC=s=>s.toUpperCase().replace(/O/g,"0").replace(/U/g,"0");
   const marks=[]; let m;
-  while((m=reC.exec(src))) marks.push({n:+m[1],s15:+m[2],i:m.index,j:m.index+m[0].length});
+  while((m=reC.exec(src))) marks.push({n:+normC(m[1]),s15:+normC(m[2]),i:m.index,j:m.index+m[0].length});
   const limpa=s=>{
     const d=s.match(/a\s+([\d.]+)\s*metros/i);
     let nome="";
     for(const ln of s.split(/\n+/)){
       if(/ordem|favorita/i.test(ln)) continue;
-      const cand=ln.replace(/[^A-Za-zÀ-Úà-ú .\-']/g," ").replace(/\s{2,}/g," ").trim().replace(/^[^A-Za-zÀ-Úà-ú]+|[^A-Za-zÀ-Úà-ú]+$/g,"");
+      if(/a\s+[\d.]+\s*metros/i.test(ln)) continue; // distância: tem campo próprio, não é nome
+      if(/t[aá]x[i1l]s/i.test(ln)) continue; // resto de contagens, não é nome
+      const cand=ln.replace(/[^A-Za-zÀ-Úà-ú0-9 .\-']/g," ").replace(/\s{2,}/g," ").trim().replace(/^[^A-Za-zÀ-Úà-ú0-9]+|[^A-Za-zÀ-Úà-ú0-9]+$/g,"");
+      if(!cand||/^[\d\s.\-]+$/.test(cand)) continue; // só números não é nome
       if(cand.length>nome.length) nome=cand;
     }
     if(/^(ordem|favoritas|inicio|extras|servicos|comunic|pracas|taxi)/i.test(nome)) nome="";
@@ -639,7 +655,9 @@ function pracaAuto(txt,info){
     if(/MAFRA/i.test(td.tdLocal)) return null; // fora da cidade: não conta
     const m=pracaPorToken(td.tdLocal);
     if(m) return {...m,nova:false};
-    if(/PT\.|PRA[CÇ]A/i.test(td.tdLocal)){
+    // Só cria sozinho para códigos de local "PT.NOME" (estruturados). Texto
+    // corrido com "praça" não cria para não inventar praças de lixo.
+    if(/^PT\./i.test(td.tdLocal)){
       const nome=td.tdLocal.trim().replace(/\s{2,}/g," ");
       const np={id:uid(),nome}; S.pracas.push(np); save(); refreshSelects(); renderPracas();
       return {id:np.id,nome,nova:true};
@@ -1342,7 +1360,7 @@ refreshChegSePreciso(); // arranca a buscar em 2º plano
 try{
   if(window.TaxiNative){
     const sub=document.querySelector("header .sub");
-    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.4";
+    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.6";
     try{
       const b=document.getElementById("btnModoAntigo");
       if(b&&typeof window.TaxiNative.vigiaA11y==="function") b.hidden=false;
