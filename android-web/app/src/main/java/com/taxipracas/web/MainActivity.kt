@@ -82,6 +82,16 @@ class MainActivity : Activity() {
         } catch (e: Exception) { }
     }
 
+    fun vigiaNativa(ok: Boolean) {
+        try {
+            val w = WebViewHolder.wv ?: return
+            w.post {
+                try { w.evaluateJavascript("window.__vigiaNativa(${if (ok) "true" else "false"})", null) }
+                catch (e: Exception) { }
+            }
+        } catch (e: Exception) { }
+    }
+
     @Deprecated("sem androidx de propósito")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -92,10 +102,13 @@ class MainActivity : Activity() {
                 i.putExtra("data", data)
                 try {
                     startForegroundService(i)
+                    vigiaNativa(true)
                 } catch (e: Exception) {
+                    vigiaNativa(false)
                     fout("O sistema bloqueou o arranque da vigia — com a app aberta, tente de novo.")
                 }
             } else {
+                vigiaNativa(false)
                 fout("Partilha cancelada — escolha Ecrã inteiro.")
             }
         } else if (requestCode == REQ_FILE) {

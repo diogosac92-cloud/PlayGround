@@ -183,6 +183,12 @@ class CaptureService : Service() {
         try { handler?.removeCallbacksAndMessages(null) } catch (e: Exception) { }
         try { bgThread?.quitSafely() } catch (e: Exception) { }
         bgThread = null
+        try {
+            val wv: WebView? = WebViewHolder.wv
+            wv?.post {
+                try { wv.evaluateJavascript("window.__vigiaNativa(false)", null) } catch (e: Exception) { }
+            }
+        } catch (e: Exception) { }
         try { display?.release() } catch (e: Exception) { }
         try { reader?.close() } catch (e: Exception) { }
         try { projection?.stop() } catch (e: Exception) { }
