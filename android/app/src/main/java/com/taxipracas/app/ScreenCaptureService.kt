@@ -15,6 +15,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.*
 import android.util.DisplayMetrics
 import android.view.WindowManager
+import android.widget.Toast
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -69,6 +70,18 @@ class ScreenCaptureService : Service() {
         when (intent?.action) {
             "STOP" -> { pararTudo(); stopSelf(); return START_NOT_STICKY }
         }
+        return try {
+            arrancar(intent)
+        } catch (t: Throwable) {
+            try {
+                Toast.makeText(this, "Falha ao arrancar a vigia: ${t.message}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) { }
+            try { stopSelf() } catch (e: Exception) { }
+            START_NOT_STICKY
+        }
+    }
+
+    private fun arrancar(intent: Intent?): Int {
         val code = intent?.getIntExtra("code", -999) ?: -999
         val data: Intent? = if (Build.VERSION.SDK_INT >= 33)
             intent?.getParcelableExtra("data", Intent::class.java)
