@@ -794,6 +794,19 @@ function vigStatus(t){ document.getElementById("vigStatus").innerHTML=t; }
 document.getElementById("btnVigiaStart").onclick=async()=>{
   if(VIG.on) return;
   desbloquearSom();
+  // Na app nativa a captura vem do Android (MediaProjection) — sem partilha do navegador
+  if(window.TaxiNative){
+    try{
+      window.TaxiNative.startWatch();
+      VIG.on=true; VIG.n=0;
+      document.getElementById("vigVideo").hidden=true;
+      document.getElementById("btnVigiaStart").disabled=true;
+      document.getElementById("btnVigiaStop").disabled=false;
+      vigStatus('<span class="live-dot dot-g"></span><b>A vigiar.</b> Abra a Taxi-Link / TaxiDigital — cada leitura entra sozinha.');
+      toast("Vigia ligada ✔ — abra a Taxi-Link");
+    }catch(e){ vigStatus("Não consegui ligar a vigia nativa."); }
+    return;
+  }
   const v=document.getElementById("vigVideo");
   try{
     if(!navigator.mediaDevices||typeof navigator.mediaDevices.getDisplayMedia!=="function")
@@ -821,6 +834,7 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
 };
 function pararVigia(msg){
   VIG.on=false; clearInterval(VIG.timer); VIG.timer=null;
+  try{ if(window.TaxiNative) window.TaxiNative.stopWatch(); }catch{}
   try{ (VIG.stream||{getTracks:()=>[]}).getTracks().forEach(t=>t.stop()); }catch{}
   VIG.stream=null;
   document.getElementById("vigVideo").hidden=true;
@@ -839,7 +853,27 @@ async function vigTick(){
     const sc=Math.min(1,1100/v.videoWidth);
     cv.width=Math.round(v.videoWidth*sc); cv.height=Math.round(v.videoHeight*sc);
     cv.getContext("2d").drawImage(v,0,0,cv.width,cv.height);
-    const url=cv.toDataURL("image/png");
+    await vigiaLer(cv.toDataURL("image/png"));
+  }catch(e){ vigLog("Falha de leitura: "+esc(e.message||e)); }
+  finally{ VIG.busy=false; }
+}
+// Canal da app nativa (WebView): frames chegam por aqui em vez do getDisplayMedia
+window.__onFrame=async(url)=>{
+  if(!VIG.on||VIG.busy||!url) return;
+  VIG.busy=true;
+  try{ await vigiaLer(url); }catch(e){ vigLog("Falha de leitura: "+esc(e.message||e)); }
+  finally{ VIG.busy=false; }
+};
+// Contagem recente para os alarmes nativos (-1 = sem dados)
+window.__contagem=function(pid){
+  try{
+    var ls=S.leituras.filter(function(x){return x.pracaId===pid;}).sort(function(a,b){return b.ts-a.ts;});
+    if(!ls.length||Date.now()-ls[0].ts>45*60000) return -1;
+    return ls[0].n;
+  }catch(e){ return -1; }
+};
+async function vigiaLer(url){
+  try{
     const {texto}=await ocrLerTexto(url,null);
     VIG.n++;
     const info=extrairTaxilink(texto);
@@ -1259,7 +1293,9 @@ function guardarMarcacoes(list,fonte){
     S.marcacoes.push({id:uid(),ts:b.ts,pracaId:pid,pracaNome:b.pracaNome,aviso:b.aviso,fonte:fonte||"",alerted:false});
     nNovas++;
   }
-  if(nNovas){ save(); refreshSelects(); renderPracas(); renderMarcBanner(); if(window.Notification&&Notification.permission==="default"){ try{ Notification.requestPermission(); }catch{} } }
+  if(nNovas){ save(); refreshSelects(); renderPracas(); renderMarcBanner();
+    try{ if(window.TaxiNative) window.TaxiNative.setBookings(JSON.stringify(S.marcacoes)); }catch{}
+    if(window.Notification&&Notification.permission==="default"){ try{ Notification.requestPermission(); }catch{} } }
   return {n:nNovas,pracas:novasPracas};
 }
 function ultimaContagem(pracaId){
@@ -1286,6 +1322,15 @@ function apitar(){
   }catch(e){}
 }
 function verificaMarcacoes(){
+  if(window.TaxiNative){
+    // Na app híbrida os alarmes exatos NATIVOS disparam (funcionam em 2º plano);
+    // aqui só se limpa expiradas e mostra a faixa.
+    if(!S.marcacoes||!S.marcacoes.length){ renderMarcBanner(); return; }
+    const ag=Date.now();
+    if(S.marcacoes.some(b=>ag-b.ts>=30*60000)){ S.marcacoes=S.marcacoes.filter(b=>ag-b.ts<30*60000); save(); }
+    renderMarcBanner();
+    return;
+  }
   if(!S.marcacoes||!S.marcacoes.length){ renderMarcBanner(); return; }
   const agora=Date.now(); let mudou=false;
   const antes=S.marcacoes.length;
@@ -1306,6 +1351,7 @@ function verificaMarcacoes(){
         const estado=n===0?" · praça VAZIA — vai!":(n!=null?` · ${n} carro(s) na praça`:" · sem dados da praça");
         const msg=`📅 Marcação ${new Date(b.ts).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})}${b.pracaNome?" — "+b.pracaNome:""}${cai?` · cai às ${cai}`:` (em ${Math.max(1,Math.round((b.ts-agora)/60000))} min)`}${estado}`;
         toast(msg+" 🔊");
+        try{ if(window.TaxiNative) window.TaxiNative.notify("Táxi Praças 🔊",msg); }catch{}
         try{ if(window.Notification&&Notification.permission==="granted") new Notification("Táxi Praças",{body:msg}); }catch{}
       }
     }
@@ -1326,10 +1372,11 @@ function renderMarcBanner(){
     return `<div class="flightrow"><span>📅 <b>${new Date(b.ts).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})}</b>${b.pracaNome?" · "+esc(b.pracaNome):""}${cai?` <span class="muted">(cai ${cai})</span>`:""} <span class="muted">— ${txt}${b.alerted?" · 🔔":""}</span></span><button class="btn small dark" onclick="delMarc('${b.id}')">✕</button></div>`;
   }).join("")}<div class="muted">Alerta 20 min antes da queda, com o estado da praça.</div></div>`;
 }
-window.delMarc=(id)=>{ S.marcacoes=(S.marcacoes||[]).filter(b=>b.id!==id); save(); renderMarcBanner(); };
+window.delMarc=(id)=>{ S.marcacoes=(S.marcacoes||[]).filter(b=>b.id!==id); save(); renderMarcBanner(); try{ if(window.TaxiNative) window.TaxiNative.setBookings(JSON.stringify(S.marcacoes)); }catch{} };
 
 /* ===== init ===== */
 refreshSelects(); renderPracas(); renderRec(); renderCheg();
+try{ if(window.TaxiNative&&S.marcacoes&&S.marcacoes.length) window.TaxiNative.setBookings(JSON.stringify(S.marcacoes)); }catch{}
 document.querySelector('footer.tabbar button[data-tab="tab-pracas"]').addEventListener("click",renderPracas);
 </script>
 </body>

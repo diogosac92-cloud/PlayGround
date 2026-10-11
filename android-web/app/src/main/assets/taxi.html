@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Táxi Praças">
+<meta name="description" content="Para onde devo ir? Lê Taxi-Link e TaxiDigital e recomenda a melhor praça.">
+<title>Táxi Praças — Para onde devo ir?</title>
+<style>
+:root{
+  --bg:#111214; --card:#1c1e21; --card2:#24272c; --line:#33373d;
+  --yellow:#ffd400; --yellow2:#ffdf4d; --txt:#f5f5f5; --muted:#a8adb5;
+  --green:#2ecc71; --red:#ff5a5a; --blue:#4da3ff;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:10;background:rgba(17,18,20,.95);backdrop-filter:blur(8px);border-bottom:2px solid var(--yellow)}
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.logo{width:42px;height:42px;border-radius:10px;background:var(--yellow);display:grid;place-items:center;font-size:24px;font-weight:900;color:#111;flex:none}
+h1{font-size:18px;margin:0;line-height:1.1}
+.sub{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+main{max-width:860px;margin:0 auto;padding:12px 12px 110px}
+.tabs{position:sticky;top:67px;z-index:9;background:var(--bg);padding:8px 0;display:flex;gap:8px;overflow-x:auto}
+.tabs button{flex:1;white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--txt);padding:10px 12px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer}
+.tabs button.active{background:var(--yellow);color:#111;border-color:var(--yellow)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:12px 0}
+.card h2{margin:0 0 6px;font-size:16px}
+.card h3{margin:12px 0 8px;font-size:14px}
+p,li{font-size:14px;line-height:1.5}
+.muted{color:var(--muted);font-size:13px}
+.big-rec{background:linear-gradient(135deg,#ffd400,#ff9d00);color:#111;border-radius:var(--radius);padding:16px;margin:12px 0;border:none}
+.big-rec .k{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.big-rec .v{font-size:26px;font-weight:900;margin:4px 0}
+.big-rec .d{font-size:14px;font-weight:500}
+.grid{display:grid;gap:10px}
+@media(min-width:640px){.grid.cols2{grid-template-columns:1fr 1fr}}
+.praca{display:flex;gap:12px;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.praca.rec{border:2px solid var(--yellow);background:#2a2510}
+.rank{width:34px;height:34px;border-radius:50%;background:#111;color:var(--yellow);display:grid;place-items:center;font-weight:900;flex:none;border:1px solid var(--yellow)}
+.praca.rec .rank{background:var(--yellow);color:#111}
+.praca .info{flex:1;min-width:0}
+.praca .name{font-weight:800;font-size:15px}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.badge{font-size:12px;background:#111;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--txt)}
+.badge.y{background:var(--yellow);color:#111;border-color:var(--yellow);font-weight:800}
+.badge.g{background:#0f2f1d;color:var(--green);border-color:var(--green)}
+.badge.r{background:#331414;color:var(--red);border-color:var(--red)}
+.bar{height:8px;background:#111;border-radius:99px;overflow:hidden;margin-top:8px;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:var(--yellow)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,textarea{width:100%;background:#111;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:11px 12px;font-size:15px}
+input:focus,select:focus{outline:2px solid var(--yellow);border-color:var(--yellow)}
+label{font-size:13px;color:var(--muted);display:block;margin:10px 0 5px;font-weight:600}
+button.btn{border:none;border-radius:11px;padding:12px 14px;font-size:15px;font-weight:800;cursor:pointer;background:var(--yellow);color:#111;width:100%}
+button.btn.ghost{background:transparent;color:var(--yellow);border:1.5px solid var(--yellow)}
+button.btn.dark{background:#111;color:var(--txt);border:1px solid var(--line)}
+button.btn.small{width:auto;padding:8px 12px;font-size:13px}
+button.btn:disabled{opacity:.5}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+canvas.chart{width:100%;height:140px;background:#111;border:1px solid var(--line);border-radius:10px}
+.imgprev{max-width:100%;border-radius:10px;border:1px solid var(--line);margin-top:8px}
+.notice{background:#1a2a44;border:1px solid var(--blue);border-radius:10px;padding:10px 12px;font-size:13px;color:#cfe3ff}
+.warn{background:#331414;border:1px solid var(--red);border-radius:10px;padding:10px 12px;font-size:13px;color:#ffd6d6}
+.ok{background:#0f2f1d;border:1px solid var(--green);border-radius:10px;padding:10px 12px;font-size:13px;color:#c9f5da}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.kpi>div{background:#111;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.kpi b{display:block;font-size:20px}
+.kpi span{font-size:11.5px;color:var(--muted)}
+footer.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(20,21,24,.97);border-top:1px solid var(--line);display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:20}
+footer.tabbar button{flex:1;background:none;border:none;color:var(--muted);font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px}
+footer.tabbar button span.e{font-size:20px}
+footer.tabbar button.active{color:var(--yellow)}
+details{margin-top:8px}
+details summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--yellow)}
+.progress{height:8px;background:#111;border-radius:99px;overflow:hidden;border:1px solid var(--line);margin-top:8px}
+.progress>i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s}
+footer.tabbar button{font-size:10px;padding:6px 2px}
+.live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.dot-g{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-y{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+.dot-w{background:var(--muted)}
+.dot-r{background:var(--red)}
+.flightrow{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:7px 2px;border-bottom:1px dashed var(--line)}
+.stationrow{background:#111;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
+.stationrow .t{font-weight:800;font-size:14px}
+.spin{display:inline-block;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="logo">T</div>
+    <div>
+      <h1>Táxi Praças — Para onde devo ir?</h1>
+      <p class="sub">Lê as 2 apps de táxi (ecrã / foto), conta carros por praça e recomenda a melhor.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- RECOMENDAÇÃO -->
+  <section id="tab-rec" class="tab">
+    <div id="heroRec" class="big-rec">
+      <div class="k">◉ Recomendação agora</div>
+      <div class="v" id="heroTitle">Sem dados ainda</div>
+      <div class="d" id="heroDesc">Ligue a vigia no separador Ler ecrã — o ranking preenche sozinho.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small dark" id="btnMini" style="background:rgba(0,0,0,.35);border-color:#111">🪟 Mini sempre visível</button>
+      </div>
+    </div>
+    <div id="marcBanner"></div>
+    <div class="card">
+      <h2>🏁 Para onde ir — top 5 automático</h2>
+      <p class="muted">Atualiza sozinho a cada leitura da Taxi-Link / TaxiDigital. Menos carros à frente + praça que roda muito + perto de si = sai mais depressa.</p>
+      <div id="listaRanking" class="grid"></div>
+    </div>
+    <div class="card">
+      <h2>📊 Ritmo de saída — as 5 mais próximas</h2>
+      <canvas id="chartSaidas" class="chart" width="700" height="140"></canvas>
+      <p class="muted" id="chartLegend"></p>
+    </div>
+  </section>
+
+  <!-- LER ECRÃ -->
+  <section id="tab-ocr" class="tab" hidden>
+    <div class="card">
+      <h2>👁️ Vigia — lê sozinha</h2>
+      <p class="muted">Prima <b>Iniciar</b>, escolha <b>Ecrã inteiro</b> e abra a <b>Taxi-Link / TaxiDigital</b>. Faça scroll à vontade — a praça é reconhecida sozinha em cada leitura.</p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnVigiaStart" style="flex:1">▶️ Iniciar</button>
+        <button class="btn dark" id="btnVigiaStop" style="flex:1" disabled>⏹️ Parar</button>
+      </div>
+      <p class="muted" id="vigStatus">Parada.</p>
+      <video id="vigVideo" playsinline muted style="width:100%;border-radius:10px;margin-top:8px" hidden></video>
+      <canvas id="vigCanvas" hidden></canvas>
+      <div id="vigLog"></div>
+    </div>
+    <div class="card">
+      <h2>📸 Ler um print</h2>
+      <p class="muted">Sem vigia? Escolha um print do ecrã e prima <b>Ler</b>.</p>
+      <div class="row">
+        <select id="ocrPraca" style="flex:1"></select>
+        <select id="ocrFonte" style="flex:1"></select>
+      </div>
+      <input type="file" id="ocrFile" accept="image/*" capture="environment" style="margin-top:8px">
+      <img id="ocrPrev" class="imgprev" hidden alt="pré-visualização">
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnOCR" style="flex:2">🔍 Ler</button>
+        <button class="btn dark" id="btnRodar" style="flex:1">⟲</button>
+      </div>
+      <div class="progress" id="ocrProgWrap" hidden><i id="ocrProg"></i></div>
+      <p class="muted" id="ocrStatus"></p>
+      <div id="ocrAuto"></div>
+    </div>
+  </section>
+
+  <!-- PRAÇAS -->
+  <section id="tab-pracas" class="tab" hidden>
+    <div class="card">
+      <h2>📍 Praças</h2>
+      <p class="muted">Ex.: Aeroporto, Santa Apolónia, Oriente, Rossio, Cais do Sodré…</p>
+      <div id="listaPracas" class="grid cols2"></div>
+      <label>Nova praça</label>
+      <div class="row">
+        <input id="novaPraca" placeholder="Nome da praça — ex: Aeroporto T1" style="flex:2">
+        <button class="btn small" id="btnAddPraca" style="flex:1">Adicionar</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📱 As 2 apps que vai ler</h2>
+      <label>Nome da App 1</label>
+      <input id="cfgAppA" value="App Táxi A">
+      <label>Nome da App 2</label>
+      <input id="cfgAppB" value="App Táxi B">
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnGuardarCfg">Guardar nomes</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHEGADAS -->
+  <section id="tab-cheg" class="tab" hidden>
+    <div class="card">
+      <h2>🔎 Procura a chegar — aviões, comboios e cruzeiros</h2>
+      <p class="muted">Isto deteta <b>passageiros prestes a precisar de táxi</b> e reforça a recomendação «Ir para». Toque numa praça com selo ✈️/🚂/🛳️ no ranking para ver o motivo.</p>
+      <div id="resumoCheg" class="notice">A carregar…</div>
+    </div>
+    <div class="card">
+      <h2>✈️ Voos — Aeroporto de Lisboa (LIS)</h2>
+      <p class="muted">Aviões em voo num raio de 45 km. «A aterrar» = baixo (&lt; ~2500 m) e a descer/perto — passageiros cá fora em ~20–40 min.</p>
+      <div class="kpi">
+        <div><b id="airNum">–</b><span>no ar perto</span></div>
+        <div><b id="airAprox">–</b><span>a aterrar</span></div>
+        <div><b id="airIdade">–</b><span>atualizado</span></div>
+      </div>
+      <p class="muted" id="airStatus"><span class="live-dot dot-w"></span>Ainda sem dados.</p>
+      <div id="airList"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small dark" id="btnAirUpd">↻ Atualizar voos</button>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.ana.pt/pt/lis/voos/chegadas" target="_blank" rel="noopener">Chegadas ANA ▸</a>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.flightradar24.com/airport/lis/arrivals" target="_blank" rel="noopener">Radar LIS ▸</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🚂 Comboios — estações de Lisboa (tempo real CP)</h2>
+      <p class="muted">Chegadas <b>reais</b> (com atrasos) nos próximos 45 min, por estação. Fonte: dados públicos do site da CP.</p>
+      <p class="muted" id="trainStatus"><span class="live-dot dot-w"></span>Ainda sem dados.</p>
+      <div id="trainRows"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small dark" id="btnTrainUpd">↻ Atualizar comboios</button>
+        <button class="btn small dark" id="btnTrainTest">🩺 Testar ligação</button>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.cp.pt/info/pt/tempo-real/" target="_blank" rel="noopener">CP tempo real ▸</a>
+      </div>
+      <div id="trainTest" class="muted" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h2>🛳️ Cruzeiros — Terminal de Lisboa</h2>
+      <p class="muted" id="cruiseHint">A ler o calendário…</p>
+      <div class="row" style="margin-top:10px">
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://www.portodelisboa.pt/en/planeamento-de-cruzeiros1" target="_blank" rel="noopener">Calendário oficial ▸</a>
+        <a class="btn small dark" style="text-decoration:none;text-align:center" href="https://lisbon-cruise-guide.com/cruise-calendar" target="_blank" rel="noopener">Guia diário ▸</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🧮 Como entra na recomendação</h2>
+      <ul>
+        <li>✈️ Praças do <b>Aeroporto</b> ganham até <b>+80%</b> quando há vários aviões a aterrar.</li>
+        <li>🚂 Praças com nome da <b>estação</b> (Oriente, Apolónia, Rossio, Cais…) ganham até <b>+60%</b> conforme as chegadas de comboios.</li>
+        <li>🛳️ Praças da <b>zona ribeirinha</b> (Tabaco, Terminal, Alfama, Terreiro, Cais, Apolónia) ganham até <b>+120%</b> com navio no porto.</li>
+        <li>📏 A <b>distância da Taxi-Link</b> («a X metros» — de si até à praça) desconta: longe pesa menos. Vale 30 min.</li>
+      </ul>
+      <p class="muted">Sem internet ou sem dados, o ranking usa só as suas leituras — como antes.</p>
+    </div>
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section id="tab-hist" class="tab" hidden>
+    <div class="card">
+      <h2>🕘 Histórico e médias</h2>
+      <p class="muted">Saídas = quando o nº de táxis baixa entre duas leituras seguidas da mesma praça (carros que ganharam corrida).</p>
+      <div id="tabelaHist"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="tabbar">
+  <button data-tab="tab-rec" class="active"><span class="e">🏆</span>Ir para</button>
+  <button data-tab="tab-ocr"><span class="e">📸</span>Ler ecrã</button>
+  <button data-tab="tab-cheg"><span class="e">✈️</span>Chegadas</button>
+  <button data-tab="tab-pracas"><span class="e">📍</span>Praças</button>
+  <button data-tab="tab-hist"><span class="e">🕘</span>Histórico</button>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+"use strict";
+/* ===== Estado ===== */
+const LS_KEY = "taxi-pracas-v1";
+let S = load() || seed();
+function seed(){
+  return { appA:"Taxi-Link", appB:"TaxiDigital",
+    pracas:[{id:uid(),nome:"Aeroporto T1"},{id:uid(),nome:"Av. Rio de Janeiro"},{id:uid(),nome:"Santa Apolónia"},{id:uid(),nome:"Oriente"},{id:uid(),nome:"Cais do Sodré"},{id:uid(),nome:"Jardim do Tabaco"},{id:uid(),nome:"Pontinha"},{id:uid(),nome:"Chiado - Igreja do Loreto"},{id:uid(),nome:"Jardim da Estrela"},{id:uid(),nome:"Largo do Chiado"},{id:uid(),nome:"Largo de Camões"},{id:uid(),nome:"Terminal de Cruzeiros"},{id:uid(),nome:"Estrada dos Arneiros"},{id:uid(),nome:"Praça do Comércio"},{id:uid(),nome:"D. Carlos I"},{id:uid(),nome:"Sul e Sueste"},{id:uid(),nome:"Remolares"}],
+    leituras:[] };
+}
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3); }
+function load(){ try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; }catch{ return null; } }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+// Migração: quem tinha os nomes genéricos passa a Taxi-Link / TaxiDigital
+if(S){ let mig=false;
+  if(S.appA==="App Táxi A"){ S.appA="Taxi-Link"; mig=true; }
+  if(S.appB==="App Táxi B"||S.appB==="IzzyMove"){ S.appB="TaxiDigital"; mig=true; }
+  const temRio=(S.pracas||[]).some(p=>String(p.nome||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").includes("rio de janeiro"));
+  if(!temRio){ S.pracas.push({id:uid(),nome:"Av. Rio de Janeiro"}); mig=true; }
+  // Nomes oficiais vindos da lista de pracas da Taxi-Link: adiciona os que faltarem
+  const OFICIAIS=["Pontinha","Chiado - Igreja do Loreto","Jardim da Estrela","Largo do Chiado","Largo de Camões","Terminal de Cruzeiros","Estrada dos Arneiros","Praça do Comércio","D. Carlos I","Sul e Sueste","Remolares"];
+  const normN=n=>String(n||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  for(const n of OFICIAIS){ if(!(S.pracas||[]).some(p=>normN(p.nome)===normN(n))){ S.pracas.push({id:uid(),nome:n}); mig=true; } }
+  if(mig) save();
+}
+
+/* ===== Tabs ===== */
+const tabBtns=[...document.querySelectorAll("footer.tabbar button")];
+function showTab(id){
+  document.querySelectorAll(".tab").forEach(s=>s.hidden = s.id!==id);
+  tabBtns.forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  if(id==="tab-rec") renderRec();
+  if(id==="tab-hist") renderHist();
+  if(id==="tab-cheg"){ renderCheg(); refreshChegSePreciso(); }
+  window.scrollTo({top:0});
+}
+tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+/* ===== Helpers estatística ===== */
+function janelaHoras(){ return 4; }
+function leiturasJanela(){
+  const h=janelaHoras(), cut=Date.now()-h*3600*1000;
+  return S.leituras.filter(l=>l.ts>=cut).sort((a,b)=>a.ts-b.ts);
+}
+function statsPorPraca(pracaId, leituras){
+  const L=leituras.filter(l=>l.pracaId===pracaId).sort((a,b)=>a.ts-b.ts);
+  if(!L.length) return null;
+  const vals=L.map(l=>l.n);
+  const soma=vals.reduce((a,b)=>a+b,0), media=soma/vals.length;
+  let saidas=0;
+  for(let i=1;i<L.length;i++){ const d=L[i-1].n-L[i].n; if(d>0) saidas+=d; }
+  const horas=(L.length>1)? Math.max((L[L.length-1].ts-L[0].ts)/3600000, 1/60) : 0;
+  let taxaH = horas>0? saidas/horas : 0; // carros/hora que saem (pelas contagens)
+  // Taxi-Link «saídas nos últimos 15 min»: ritmo direto e fiável — sobrepõe-se se for recente (<90 min)
+  const tl=L.filter(l=>l.saidas15!=null&&Date.now()-l.ts<90*60000);
+  let taxaTL=null;
+  if(tl.length){ taxaTL=tl.reduce((a,l)=>a+l.saidas15,0)/tl.length*4; taxaH=Math.max(taxaH,taxaTL); }
+  const atual=L[L.length-1].n;
+  const esperaH = taxaH>0? (atual+1)/taxaH : Infinity; // horas estimadas p/ sair
+  const score = taxaH/(atual+1);
+  return {L,atual,media,min:Math.min(...vals),max:Math.max(...vals),saidas,horas,taxaH,esperaH,score,n:L.length,taxaTL};
+}
+function fmtEspera(h){
+  if(!isFinite(h)) return "sem dados de saída";
+  const m=Math.round(h*60);
+  if(m<1) return "< 1 min";
+  if(m<60) return `~${m} min`;
+  const hh=Math.floor(m/60), mm=m%60;
+  return mm? `~${hh}h${String(mm).padStart(2,"0")}` : `~${hh}h`;
+}
+function nomePraca(id){ return (S.pracas.find(p=>p.id===id)||{}).nome||"(apagada)"; }
+// Última distância conhecida "eu → praça" (vem da Taxi-Link). Válida 30 min — a conduzir fica velha.
+function ultimaDistancia(pracaId){
+  const c=[...S.leituras].filter(l=>l.pracaId===pracaId&&l.det&&l.det.distanciaM!=null).sort((a,b)=>b.ts-a.ts)[0];
+  if(!c||Date.now()-c.ts>30*60000) return null;
+  return {m:c.det.distanciaM,ts:c.ts};
+}
+// Quanto mais longe, menor a pontuação. O "meio" (distância que corta a pontuação a
+// metade) é ajustável — ver seletor "Peso da distância". Ex. com 3000 m:
+// 0 m→100%, 1,5 km→67%, 3 km→50%, 5 km→38%, 8 km→27%
+function distHalf(){ return (S.cfg&&S.cfg.distHalf)||3000; }
+function distFator(m){ return 1/(1+Math.max(0,m)/distHalf()); }
+function fmtDist(m){ return m<1000?`${m} m`:`${(m/1000).toFixed(1).replace(".",",")} km`; }
+// Oc/15 médio da Taxi-Link numa janela (ritmo real medido pela central) —
+// é a coluna para avaliar que praças rodam de verdade ao longo do tempo
+function oc15Medio(pracaId, leituras){
+  const v=leituras.filter(l=>l.pracaId===pracaId&&l.saidas15!=null).map(l=>l.saidas15);
+  if(!v.length) return null;
+  return v.reduce((a,b)=>a+b,0)/v.length;
+}
+
+/* ===== Renders ===== */
+function refreshSelects(){
+  const op=document.getElementById("ocrPraca");
+  op.innerHTML="";
+  S.pracas.forEach(p=>{ op.add(new Option(p.nome,p.id)); });
+  const of=document.getElementById("ocrFonte");
+  of.innerHTML="";
+  [S.appA,S.appB].forEach(a=>{ of.add(new Option(a,a)); });
+  document.getElementById("cfgAppA").value=S.appA;
+  document.getElementById("cfgAppB").value=S.appB;
+}
+function calcRanking(){
+  const L=leiturasJanela();
+  const rows=S.pracas.map(p=>{ const s=statsPorPraca(p.id,L); if(!s) return null; const pb=(typeof bonusProcura==="function")?bonusProcura(p.nome):{f:1,tags:[]}; const dd=ultimaDistancia(p.id); const fd=dd?distFator(dd.m):1; return {p,s,pb,dist:dd,scoreF:s.score*pb.f*fd}; }).filter(Boolean);
+  rows.sort((a,b)=> (b.scoreF??-1)-(a.scoreF??-1));
+  return {rows,L,top5:rows.slice(0,5)};
+}
+function renderRec(){
+  refreshSelects();
+  const {rows,top5}=calcRanking();
+  // Hero
+  const heroT=document.getElementById("heroTitle"), heroD=document.getElementById("heroDesc");
+  if(!rows.length){ heroT.textContent="Sem dados ainda"; heroD.textContent="Ligue a vigia no separador Ler ecrã — o ranking preenche sozinho."; }
+  else{
+    const best=rows[0];
+    heroT.textContent="👉 Vai para: "+best.p.nome;
+    heroD.textContent=`${best.s.atual} táxi(s) em espera · ritmo ${best.s.taxaH.toFixed(1)} saídas/hora · espera estimada ${fmtEspera(best.s.esperaH)}.`+(best.dist?` Fica a ${fmtDist(best.dist.m)} daqui.`:"")+(best.pb.tags.length?` Reforço de procura: ${best.pb.tags.join(" · ")}.`:" Probabilidade de sair depressa: a melhor agora.");
+  }
+  // Ranking: só o top 5
+  const box=document.getElementById("listaRanking"); box.innerHTML="";
+  if(!rows.length) box.innerHTML='<p class="muted">Ligue a vigia no separador Ler ecrã.</p>';
+  top5.forEach((r,i)=>{
+    const maxScore=Math.max(...top5.map(x=>x.scoreF),0.0001);
+    const pct=Math.round(100*r.scoreF/maxScore);
+    const el=document.createElement("div");
+    el.className="praca"+(i===0?" rec":"");
+    el.innerHTML=`<div class="rank">${i+1}</div>
+      <div class="info"><div class="name">${i===0?"⭐ ":""}${esc(r.p.nome)}</div>
+      <div class="badges">
+        <span class="badge y">${r.s.atual} em espera</span>
+        <span class="badge">média ${r.s.media.toFixed(1)}</span>
+        <span class="badge ${r.s.taxaH>0?"g":""}">${r.s.taxaH.toFixed(1)} saídas/h</span>
+        ${r.s.taxaTL!=null?`<span class="badge g">📞 Taxi-Link ${r.s.taxaTL.toFixed(0)}/h</span>`:""}
+        ${r.dist?`<span class="badge">📏 ${fmtDist(r.dist.m)}</span>`:""}
+        <span class="badge">espera ${fmtEspera(r.s.esperaH)}</span>
+        ${r.pb.tags.map(t=>`<span class="badge g">${esc(t)}</span>`).join("")}
+      </div>
+      <div class="muted">${r.s.n} leituras · ${r.s.saidas} saídas detetadas · min ${r.s.min} / máx ${r.s.max}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div>`;
+    box.appendChild(el);
+  });
+  // Gráfico: as 5 praças mais próximas (distância Taxi-Link); sem distâncias, o top 5
+  const comDist=rows.filter(r=>r.dist).sort((a,b)=>a.dist.m-b.dist.m).slice(0,5);
+  const chartRows=comDist.length?comDist:rows.slice(0,5);
+  drawChart(chartRows);
+  const leg=document.getElementById("chartLegend");
+  if(chartRows.length) leg.textContent=comDist.length?"As 5 mais próximas de si — barra = ritmo de saída.":"Top 5 por pontuação (sem distâncias ainda — leia a lista de praças).";
+  renderMarcBanner();
+}
+function drawChart(rows){
+  const c=document.getElementById("chartSaidas"), ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+  const leg=document.getElementById("chartLegend");
+  if(!rows.length){ leg.textContent="Sem dados para gráfico."; return; }
+  const max=Math.max(...rows.map(r=>r.s.taxaH),1);
+  const bw=c.width/rows.length;
+  rows.forEach((r,i)=>{
+    const h=(c.height-24)*(r.s.taxaH/max);
+    ctx.fillStyle=i===0?"#ffd400":"#4da3ff";
+    ctx.fillRect(i*bw+12, c.height-16-h, bw-24, h);
+    ctx.fillStyle="#fff"; ctx.font="11px system-ui";
+    ctx.fillText(r.s.taxaH.toFixed(1)+"/h", i*bw+12, c.height-18-h);
+    ctx.fillStyle="#a8adb5";
+    ctx.fillText(r.p.nome.slice(0,12), i*bw+12, c.height-3);
+  });
+  leg.textContent="Barra = ritmo de saída (carros/hora). Amarela = recomendada.";
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+/* ===== Praças / config ===== */
+function renderPracas(){
+  const box=document.getElementById("listaPracas"); box.innerHTML="";
+  S.pracas.forEach(p=>{
+    const d=document.createElement("div"); d.className="praca";
+    d.innerHTML=`<div class="info"><div class="name">${esc(p.nome)}</div></div><button class="btn small dark">✕</button>`;
+    d.querySelector("button").onclick=()=>{ if(!confirm(`Apagar "${p.nome}" e as suas leituras?`))return; S.pracas=S.pracas.filter(x=>x.id!==p.id); S.leituras=S.leituras.filter(l=>l.pracaId!==p.id); save(); renderPracas(); renderRec(); };
+    box.appendChild(d);
+  });
+}
+document.getElementById("btnAddPraca").onclick=()=>{
+  const v=document.getElementById("novaPraca").value.trim();
+  if(!v) return alert("Escreva o nome da praça.");
+  S.pracas.push({id:uid(),nome:v}); document.getElementById("novaPraca").value=""; save(); renderPracas(); renderRec(); toast("Praça adicionada ✔");
+};
+document.getElementById("btnGuardarCfg").onclick=()=>{
+  S.appA=document.getElementById("cfgAppA").value.trim()||"App Táxi A";
+  S.appB=document.getElementById("cfgAppB").value.trim()||"App Táxi B";
+  save(); refreshSelects(); toast("Apps guardadas ✔");
+};
+/* ===== Histórico ===== */
+function renderHist(){
+  const L=[...S.leituras].sort((a,b)=>b.ts-a.ts).slice(0,200);
+  const box=document.getElementById("tabelaHist");
+  if(!L.length){box.innerHTML='<p class="muted">Sem leituras.</p>';return;}
+  box.innerHTML=`<table><tr><th>Data/hora</th><th>Praça</th><th>Fonte</th><th>Nº táxis</th><th>Ecrã</th><th>Variação</th></tr>${L.map((l,i)=>{
+    const prev=[...S.leituras].filter(x=>x.pracaId===l.pracaId&&x.ts<l.ts).sort((a,b)=>b.ts-a.ts)[0];
+    const d=prev? (prev.n-l.n):0;
+    const tag=d>0?`<span class="badge g">−${d} saíram 🚕</span>`:d<0?`<span class="badge r">+${-d} chegaram</span>`:`<span class="badge">—</span>`;
+    return `<tr><td>${new Date(l.ts).toLocaleString("pt-PT")}</td><td>${esc(nomePraca(l.pracaId))}</td><td>${esc(l.fonte||"")}</td><td><b>${l.n}</b>${l.saidas15!=null?` <span class="muted">📞${l.saidas15}/15m</span>`:""}${l.det&&l.det.posicao!=null?` <span class="muted">📍${l.det.posicao}º</span>`:""}</td><td>${ecraTag(l.ecra)}</td><td>${tag}</td></tr>`;
+  }).join("")}</table>
+  <h3>Médias por praça (janela atual)</h3>
+  <table><tr><th>Praça</th><th>Média</th><th>Saídas/h</th><th>Oc/15 méd. 📞</th><th>Espera est.</th></tr>${S.pracas.map(p=>{const s=statsPorPraca(p.id,leiturasJanela());const oc=s?oc15Medio(p.id,leiturasJanela()):null;return s?`<tr><td>${esc(p.nome)}</td><td>${s.media.toFixed(1)}</td><td>${s.taxaH.toFixed(1)}</td><td>${oc!=null?oc.toFixed(1):"—"}</td><td>${fmtEspera(s.esperaH)}</td></tr>`:`<tr><td>${esc(p.nome)}</td><td colspan="4">sem dados</td></tr>`;}).join("")}</table>
+  <p class="muted">O <b>Oc/15 médio</b> é o ritmo real medido pela Taxi-Link (últimas 4 horas).</p>
+  <h3>Taxi-Link vs TaxiDigital (janela atual)</h3>
+  <table><tr><th>App</th><th>Leituras</th><th>Média táxis vistos</th></tr>${[S.appA,S.appB].map(a=>{const ll=leiturasJanela().filter(l=>(l.fonte||"")===a);const m=ll.length?ll.reduce((x,l)=>x+l.n,0)/ll.length:NaN;return `<tr><td>${esc(a)}</td><td>${ll.length}</td><td>${isNaN(m)?"—":m.toFixed(1)}</td></tr>`;}).join("")}</table>
+  <p class="muted">Leia a mesma praça nas duas apps: a «média de táxis vistos» mostra se uma mexe mais que a outra.</p>`;
+}
+
+/* ===== init ===== */
+function toast(m){ const d=document.createElement("div"); d.className="ok"; d.textContent=m; d.style.cssText="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99;padding:10px 18px;border-radius:99px;font-weight:700"; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+
+/* ===== OCR ===== */
+// Extrai estrutura: Nºs DE LICENÇA (o que Taxi-Link/TaxiDigital mostram — ex. "Licença Nº 1234",
+// "Táxi Nº 45", "Nº 12"), matrículas PT como reserva, tempos e números
+function extrairInfo(txt){
+  const raw=String(txt||"");
+  const T=raw.toUpperCase();
+  const set=new Set(), placas=[];
+  const fixD=s=>s.replace(/O/g,"0").replace(/I/g,"1").replace(/L/g,"1"); // confusões típicas do OCR em posições numéricas
+  // Passagem única com alternância: evita falsos positivos por sobreposição (ex. "XT-67 AB" dentro de "45-XT-67 AB-12-CD")
+  const RE=/\b(?:(\d{2})[\s.\-–]?([A-Z]{2})[\s.\-–]?(\d{2})|([A-Z]{2})[\s.\-–]?(\d{2})[\s.\-–]?([A-Z]{2}))\b/g;
+  let m;
+  while((m=RE.exec(T))){
+    let disp;
+    if(m[1]!==undefined) disp=`${fixD(m[1])}-${m[2]}-${fixD(m[3])}`;       // 12-AB-34
+    else disp=`${m[4]}-${fixD(m[5])}-${m[6]}`;                              // AB-12-CD
+    if(!set.has(disp)){ set.add(disp); placas.push(disp); }
+  }
+  // Nºs de licença etiquetados: cada ocorrência distinta = um carro na fila/praça
+  const licSet=new Set(), licencas=[];
+  const LIC_RES=[
+    /LICEN[CÇ]AS?\s*(?:(?:NO\.?|N[º°.]?)\s*)?(\d{1,5})/g,
+    /\bLIC\.?\s*(?:(?:NO\.?|N[º°.]?)\s*)?(\d{1,5})/g,
+    /T[AÁ]XIS?\s*(?:NO\.?|N[º°.]?)\s*(\d{1,5})/g,
+    /ALVAR[AÁ]S?\s*(?:(?:NO\.?|N[º°.]?)\s*)?(\d{1,5})/g,
+    /VIATURA\s*(?:(?:NO\.?|N[º°.]?)\s*)?(\d{1,5})/g,
+    /\bN[º°]\s*(\d{1,5})/g
+  ];
+  for(const re of LIC_RES){ let lm; while((lm=re.exec(T))){ const v=lm[1].replace(/^0+/,"")||"0"; if(!licSet.has(v)){ licSet.add(v); licencas.push(v); } } }
+  // Posição na fila: "Posição 5" ou "1º na fila" (= 5º/1º → esse nº de carros)
+  let posicao=null;
+  const pm=T.match(/POSI[CÇ][AÃ]O\s*(?:(?:NO\.?|N[º°.]?)\s*)?(\d{1,3})/);
+  const pm2=T.match(/(\d{1,3})\s*(?:[º°O]\s*)?NA\s*FILA/);
+  for(const mm of [pm,pm2]){ if(mm){ const v=parseInt(mm[1],10); if(!isNaN(v)&&v>=1&&v<=500){ posicao=v; break; } } }
+  // Ecrã de pesquisa: "1 com a mesma prioridade" (concorrentes diretos ao serviço)
+  let mesmaPrioridade=null;
+  const mprio=T.match(/(\d{1,3})\s*COM\s*A\s*MESMA\s*PRIORIDADE/);
+  if(mprio){ const v=parseInt(mprio[1],10); if(!isNaN(v)&&v<=500) mesmaPrioridade=v; }
+  // Ecrã de pesquisa: "a 4991 metros" / "a 2,5 km" (distância até à praça)
+  let distanciaM=null;
+  const dm=T.match(/\bA\s*([\d.]+)\s*METROS/);
+  if(dm) distanciaM=parseInt(dm[1].replace(/\./g,""),10);
+  if(distanciaM!=null&&(isNaN(distanciaM)||distanciaM<0)) distanciaM=null;
+  if(distanciaM==null){ const dk=T.match(/\bA\s*([\d.,]+)\s*KM/); if(dk) distanciaM=Math.round(parseFloat(dk[1].replace(",","."))*1000); }
+  // Tempo na praça: "00:36 em praça" (há quanto tempo o carro está na praça)
+  let tempoPraca=null;
+  const tm=T.match(/(\d{1,2}:\d{2})\s*EM\s*PRA[CÇ]A/);
+  if(tm) tempoPraca=tm[1];
+  // Caixa da fila: linhas com exatamente 2 números "posição licença" (ex. "1 6", "2 459").
+  // Linhas com ":" (horas como 00:36) ou posição 0 são ignoradas para não poluir.
+  const fila=[];
+  for(const ln of String(txt||"").split(/\n+/)){
+    if(ln.includes(":")) continue;
+    const toks=(ln.match(/\d+/g)||[]).map(Number);
+    if(toks.length===2&&toks[0]>=1&&toks[0]<=60&&toks[1]<=99999) fila.push({pos:toks[0],lic:String(toks[1])});
+  }
+  const tempos=[...(raw.match(/\b\d{1,3}\s?min\b/gi)||[]),...(raw.match(/\b\d{1,2}:\d{2}\b/g)||[])].filter(t=>!/^15\s?min$/i.test(t)).slice(0,8);
+  const nums=(raw.match(/\d{1,3}/g)||[]).map(Number).filter(n=>n<=500);
+  const sugerido=licencas.length?licencas.length:(placas.length?placas.length:(nums.length?nums[0]:null));
+  // Cabeçalho TaxiDigital: "(CNTD) Livre PT.RIO JANEIRO 4" = estado + local + posição.
+  // Horas ("14:56") e bateria ("63%") são removidas primeiro para não colarem ao número.
+  let tdStatus=null, tdLocal=null, tdPos=null;
+  const TH=T.replace(/\d{1,2}:\d{2}/g," ").replace(/\d{1,3}\s*%/g," ");
+  const hd=TH.match(/\(?CNTD\)?\s*(LIVRE|OCUPADO|EM\s+SERVI[CÇ]O|AUSENTE|PAUSA)\s+([A-ZÀ-Ú0-9 .\-]{2,45})/);
+  if(hd){ tdStatus=hd[1].replace(/\s+/g," "); let loc=hd[2].split(/\s+(POSI[CÇ][AÃ]O|HIST[OÓ]RICO|ZONAS|DEFINA|COMUNICA|PENDENTES|OFERTAS)\b/)[0].trim();
+    const pn=loc.match(/^(.*?)\s+(\d{1,3})$/);
+    if(pn){ loc=pn[1].trim(); const pv=parseInt(pn[2],10); if(pv>=1&&pv<=500) tdPos=pv; }
+    if(loc) tdLocal=loc;
+  }
+  return {placas,licencas,posicao,tempoPraca,fila,mesmaPrioridade,distanciaM,tdStatus,tdLocal,tdPos,tempos,nums,sugerido};
+}
+// Leitor específico Taxi-Link: «N carros saíram de chamada nos últimos 15 minutos»
+// O texto exato varia com a versão da app, por isso tenta vários padrões à volta de "15 min".
+function extrairTaxilink(txt){
+  const raw=String(txt||"");
+  // "quinze minutos" por extenso → "15 minutos" para os padrões apanharem
+  const T=raw.replace(/\s+/g," ").toUpperCase().replace(/QUINZE/g,"15");
+  let saidas15=null;
+  const pats=[
+    /(\d{1,3})\s*(?:CARROS?|TAXIS?|VIATURAS?|SERVI[CÇ]OS?|CHAMADAS?|SA[IÍ]DAS?)\s*[^.]{0,40}15\s*MIN/i,
+    /15\s*MIN[^\d.]{0,12}(\d{1,3})/i,
+    /SA[IÍ]RAM?\s*[^\d.]{0,10}(\d{1,3})/i,
+    /(\d{1,3})\s*SA[IÍ]RAM/i,
+    /[UÚ]LTIMOS?\s*15\s*MIN[^\d.]{0,12}(\d{1,3})/i,
+    /(\d{1,3})\s*[^\d]{0,25}[UÚ]LTIMOS?\s*15/i
+  ];
+  for(const re of pats){ const m=T.match(re); if(m){ const v=parseInt(m[1],10); if(!isNaN(v)&&v<=500){ saidas15=v; break; } } }
+  const base=extrairInfo(txt);
+  // carros em espera: 1º nº de licenças distintas (o que as apps mostram),
+  // 2º contagem por matrícula, 3º "posição N" (N-1 à frente + eu = N);
+  // senão o primeiro número que não seja o rótulo "15 MIN" nem as saídas.
+  // Se não houver, fica null (não inventa).
+  let emEspera=base.licencas.length||base.fila.length||base.placas.length||base.posicao||base.tdPos||null;
+  if(emEspera==null){
+    // Fallback: primeiro número que não seja o rótulo "15 MIN", as saídas,
+    // a distância ("a 4991 metros") nem horas ("00:36") — para nunca os confundir com carros
+    const Tnum=T.replace(/\bA\s*[\d.]+\s*METROS/," ").replace(/\bA\s*[\d.,]+\s*KM/," ").replace(/\d{1,2}:\d{2}/g," ").replace(/\d{1,3}\s*%/g," ");
+    const fb=(Tnum.match(/\d{1,3}/g)||[]).map(Number).filter(n=>n<=500&&n!==15&&n!==saidas15);
+    emEspera=fb.length?fb[0]:null;
+  }
+  return {...base,emEspera,saidas15,ecra:detetarEcra(txt),lista:extrairLista(txt)};
+}
+// Ecrã "lista de praças": cada praça traz "A B táxis oc/15" (A = táxis, B = ocupados/15min)
+// mais o nome e "a DIST metros", possivelmente em linhas separadas.
+// Agrupa por blocos: cada ocorrência de counts é dona do texto até às vizinhas.
+function extrairLista(txt){
+  const src=String(txt||"");
+  const reC=/(\d{1,3})\s+(\d{1,3})\s*t[aá]xis\s*oc\s*\/\s*15/gi;
+  const marks=[]; let m;
+  while((m=reC.exec(src))) marks.push({n:+m[1],s15:+m[2],i:m.index,j:m.index+m[0].length});
+  const limpa=s=>{
+    const d=s.match(/a\s+([\d.]+)\s*metros/i);
+    let nome="";
+    for(const ln of s.split(/\n+/)){
+      if(/ordem|favorita/i.test(ln)) continue;
+      const cand=ln.replace(/[^A-Za-zÀ-Úà-ú .\-']/g," ").replace(/\s{2,}/g," ").trim().replace(/^[^A-Za-zÀ-Úà-ú]+|[^A-Za-zÀ-Úà-ú]+$/g,"");
+      if(cand.length>nome.length) nome=cand;
+    }
+    if(/^(ordem|favoritas|inicio|extras|servicos|comunic|pracas|taxi)/i.test(nome)) nome="";
+    return {nome,dist:d?parseInt(d[1].replace(/\./g,""),10):null,offD:d?d.index:null};
+  };
+  const rows=[];
+  for(let k=0;k<marks.length;k++){
+    const antes=k===0?"":src.slice(marks[k-1].j,marks[k].i);
+    const depois=k+1<marks.length?src.slice(marks[k].j,marks[k+1].i):src.slice(marks[k].j);
+    const A=limpa(antes), D=limpa(depois);
+    // Ordem observada no ecrã: contagens → nome → distância, por isso o lado de
+    // depois é o dono; o lado de antes só vale se depois vier vazio. Se depois
+    // tem nome mas não tem distância e antes tem, herda-se a distância de antes.
+    let sel=null;
+    if(D.nome.length>=3){ sel=D; if(sel.dist==null&&A.dist!=null) sel={...sel,dist:A.dist}; }
+    else if(A.nome.length>=3) sel=A;
+    if(!sel||sel.nome.length<3) continue;
+    rows.push({nome:sel.nome,dist:sel.dist,n:marks[k].n,saidas15:marks[k].s15});
+  }
+  return rows;
+}
+// por palavras significativas partilhadas. 1 palavra chega se for a única; senão ≥2.
+const TD_STOP=new Set(["PRAÇA","PRACA","PRACAS","AV","AVENIDA","RUA","LARGO","PT","DE","DA","DO","DAS","DOS","E","S","SAO","SÃO","SANTO","SANTA","CONCELHO","ZONA","ZONAS"]);
+function sigWords(s){ return norm(String(s||"")).toUpperCase().split(/[^A-Z]+/).filter(w=>w.length>=3&&!TD_STOP.has(w)); }
+function pracaPorToken(local){
+  const lw=sigWords(local); if(!lw.length) return null;
+  const need=lw.length===1?1:2;
+  let best=null,bestN=0;
+  for(const p of (S.pracas||[])){
+    const pw=sigWords(p.nome);
+    const n=lw.filter(w=>pw.includes(w)).length;
+    if(n>=need&&n>bestN){ best={id:p.id,nome:p.nome,n}; bestN=n; }
+  }
+  return best;
+}
+// Praça automática: nome exato no texto, senão local do cabeçalho TaxiDigital
+function pracaAuto(txt,info){
+  const ex=pracaPorTexto(txt);
+  if(ex) return {...ex,nova:false};
+  const td=info&&(info.tdLocal?info:null);
+  if(td){
+    if(/MAFRA/i.test(td.tdLocal)) return null; // fora da cidade: não conta
+    const m=pracaPorToken(td.tdLocal);
+    if(m) return {...m,nova:false};
+    if(/PT\.|PRA[CÇ]A/i.test(td.tdLocal)){
+      const nome=td.tdLocal.trim().replace(/\s{2,}/g," ");
+      const np={id:uid(),nome}; S.pracas.push(np); save(); refreshSelects(); renderPracas();
+      return {id:np.id,nome,nova:true};
+    }
+  }
+  return null;
+}
+// Devolve a praça conhecida com o nome mais longo encontrado no texto.
+function pracaPorTexto(txt){
+  const T=norm(String(txt||""));
+  let best=null;
+  for(const p of (S.pracas||[])){
+    const n=norm(p.nome);
+    if(n.length>=4&&T.includes(n)&&(!best||n.length>best.n.length)) best={id:p.id,nome:p.nome,n};
+  }
+  return best;
+}
+// Qual dos dois ecrãs da Taxi-Link é este? "praca" (estou na praça) ou "pesquisa"
+// (a pesquisar outra praça). Deteta por palavras-chave; o utilizador pode forçar no passo 2.
+function detetarEcra(txt){
+  const T=String(txt||"").toUpperCase();
+  const has=(...res)=>res.some(re=>re.test(T));
+  // Ecrã "lista de praças": mostra nome + distância + "N M táxis oc/15" para várias praças
+  if(has(/MARCA[CÇ][AÃÕ][OE]S?|RESERVA|AGENDAD/)&&!has(/OC\s*\/\s*15/)) return "marc";
+  if(has(/ORDEM:/,/FAVORITAS/,/OC\s*\/\s*15/)) return "lista";
+  if(has(/PESQUIS/,/PROCUR/,/OUTRA?\s*PRA[CÇ]A/,/LISTA\s*DE\s*PRA[CÇ]AS/,/ESCOLHER\s*PRA[CÇ]A/,/VER\s*PRA[CÇ]A/,/SELECION/,/LUGARES/,/MESMA\s*PRIORIDADE/,/OCUPADOS/,/QUINZE\s*MINUTOS/,/METROS/,/T[AÁ]XIS\s+NA\s+PRA[CÇ]A/)) return "pesquisa";
+  if(has(/MINHA\s*PRA[CÇ]A/,/ESTOU\s*NA/,/\bNA\s*PRA[CÇ]A\b/,/\bEM\s*PRA[CÇ]A\b/,/MINHA\s*FILA/,/SA[IÍ]RAM/,/POSI[CÇ][AÃ]O/,/NA\s*FILA/,/CEDER\s*VEZ/,/SAIR\s*PRA[CÇ]A/,/CNTD/,/PENDENTES\/OFERTAS/,/DEFINA STATUS/,/COMUNICA[CÇ][AÃ]O COM A CENTRAL/)) return "praca";
+  return null;
+}
+function ecraFinal(detetado){ return detetado; }
+function ecraTag(e){
+  if(e==="praca") return '<span class="badge">🚕 na praça</span>';
+  if(e==="pesquisa") return '<span class="badge">🔍 pesquisa</span>';
+  if(e==="lista") return '<span class="badge">📋 lista</span>';
+  if(e==="marc") return '<span class="badge">📅 marcação</span>';
+  return '<span class="badge">—</span>';
+}
+// Nº em espera quando o OCR só apanhou as saídas: herda a última leitura da praça
+// para não corromper as médias (nunca usa o "15" do rótulo como contagem).
+function herdarEmEspera(pracaId){
+  const prev=[...S.leituras].filter(l=>l.pracaId===pracaId).sort((a,b)=>b.ts-a.ts)[0];
+  return prev?prev.n:null;
+}
+function matchPracaId(nome){
+  const T=norm(String(nome||""));
+  let best=null;
+  for(const p of (S.pracas||[])){
+    const n=norm(p.nome);
+    if(n.length>=4&&(T.includes(n)||n.includes(T))&&(!best||n.length>best.n.length)) best={id:p.id,nome:p.nome,n};
+  }
+  return best;
+}
+// Ecrã "lista de praças": guarda N leituras de uma vez (nome+distância+táxis+oc/15 por praça).
+function renderLista(info,box){
+  const rows=info.lista.map(r=>({...r,match:matchPracaId(r.nome)}));
+  const novas=[...new Set(rows.filter(r=>!r.match).map(r=>r.nome))];
+  box.innerHTML=`<div class="ok"><b>🤖 Lista de praças lida — ${rows.length} praças</b> ${ecraTag("lista")}
+  <table><tr><th>Praça</th><th>Táxis</th><th>Oc/15</th><th>Dist.</th></tr>${rows.map(r=>`<tr><td>${esc(r.match?r.match.nome:r.nome)}${r.match?"":" ❓"}</td><td><b>${r.n}</b></td><td>${r.saidas15}</td><td class="muted">${r.dist!=null?r.dist+" m":"—"}</td></tr>`).join("")}</table>
+  ${novas.length?`<div class="warn" style="margin-top:8px">Novas praças: ${novas.map(esc).join(" · ")} — serão adicionadas ao guardar.</div>`:""}
+  <div class="row" style="margin-top:10px"><button class="btn" id="btnListaGuardar">Guardar ${rows.length} leituras — 1 toque</button></div></div>`;
+  document.getElementById("btnListaGuardar").onclick=()=>{
+    const fonte=document.getElementById("ocrFonte").value;
+    let nNovas=0;
+    for(const r of rows){
+      let pid=r.match?r.match.id:null;
+      if(!pid){ const np={id:uid(),nome:r.nome}; S.pracas.push(np); pid=np.id; nNovas++; }
+      const reg={id:uid(),pracaId:pid,fonte,n:r.n,ts:Date.now(),metodo:"lista-auto",ecra:"lista",det:{distanciaM:r.dist}};
+      reg.saidas15=r.saidas15;
+      S.leituras.push(reg);
+    }
+    save(); refreshSelects(); renderPracas(); renderRec();
+    toast(`Lista guardada ✔ (${rows.length} praças${nNovas?`, ${nNovas} novas`:""})`);
+    showTab("tab-rec");
+  };
+}
+function renderAuto(info){
+  const box=document.getElementById("ocrAuto");
+  if(info.tdStatus&&info.tdStatus!=="LIVRE"){ box.innerHTML=`<div class="warn">Estado <b>${esc(info.tdStatus)}</b> — não é fila, leitura ignorada. Mude para Livre para ler a posição.</div>`; return; }
+  if(info.sugerido==null&&info.saidas15==null&&!(info.lista&&info.lista.length)){ box.innerHTML='<div class="warn">Não consegui ler carros, licenças nem tempos. Tente outro print mais nítido.</div>'; return; }
+  if(info.lista&&info.lista.length){ renderLista(info,box); return; }
+  const n=info.emEspera!=null?info.emEspera:info.sugerido;
+  const contaTxt=info.licencas.length?info.licencas.length+" (por nº de licença)":(info.placas.length?info.placas.length+" (por matrícula)":(n!=null?n:"—"));
+  box.innerHTML=`<div class="ok"><b>🤖 Leitura automática</b> ${ecraTag(ecraFinal(info.ecra))}<br>🚕 Carros detetados: <b>${contaTxt}</b>${info.licencas.length?`<br><span>Licenças: ${info.licencas.map(esc).join(" · ")}</span>`:""}${(!info.licencas.length&&info.placas.length)?`<br><span>Matrículas: ${info.placas.map(esc).join(" · ")}</span>`:""}${(info.posicao!=null?info.posicao:info.tdPos)!=null?`<br><span>📍 A sua posição na fila: <b>${info.posicao!=null?info.posicao:info.tdPos}º</b></span>`:""}${info.tempoPraca?`<br><span>⏱️ Tempo em praça: <b>${esc(info.tempoPraca)}</b></span>`:""}${info.mesmaPrioridade!=null?`<br><span>🥇 Com a mesma prioridade: <b>${info.mesmaPrioridade}</b></span>`:""}${info.distanciaM!=null?`<br><span>📏 Distância até à praça: <b>${info.distanciaM} m</b></span>`:""}${info.saidas15!=null?`<br>📞 Taxi-Link: <b>${info.saidas15} saídas nos últimos 15 min</b> → ritmo ${(info.saidas15*4).toFixed(0)}/hora`:""}${info.tempos.length?`<br>⏱️ Tempos vistos: ${info.tempos.map(esc).join(" · ")}`:""}<div class="row" style="margin-top:10px"><button class="btn" id="btnAutoGuardar">Guardar${n!=null?`: ${n} carro(s)`:""} — 1 toque</button></div></div>`;
+  document.getElementById("btnAutoGuardar").onclick=()=>{
+    const pracaId=document.getElementById("ocrPraca").value;
+    if(!pracaId) return alert("Escolha a praça em cima.");
+    let nF=n;
+    if(nF==null){
+      nF=herdarEmEspera(pracaId);
+      if(nF==null) return alert("Não consegui ler os carros em espera — tente outro print.");
+    }
+    const reg={id:uid(),pracaId,fonte:document.getElementById("ocrFonte").value,n:nF,ts:Date.now(),metodo:"ocr-auto",ecra:ecraFinal(info.ecra),det:{licencas:info.licencas,placas:info.placas,posicao:info.posicao,tempoPraca:info.tempoPraca,mesmaPrioridade:info.mesmaPrioridade,distanciaM:info.distanciaM,tempos:info.tempos}};
+    if(info.saidas15!=null) reg.saidas15=info.saidas15;
+    S.leituras.push(reg);
+    save(); renderRec(); toast(`Leitura automática guardada ✔${info.saidas15!=null?` (${info.saidas15} saídas/15min)`:""}`);
+    showTab("tab-rec");
+  };
+}
+const ocrFile=document.getElementById("ocrFile"), ocrPrev=document.getElementById("ocrPrev");
+let ocrDataUrl=null;
+// Pré-processa + OCR. Reutilizada pelo print único e pela vigia contínua.
+async function ocrLerTexto(dataUrl,progCb){
+  const img=await loadImg(dataUrl);
+  const cv=document.createElement("canvas"); const k=Math.min(2, 1600/Math.max(img.width,img.height))+1;
+  cv.width=Math.round(img.width*k); cv.height=Math.round(img.height*k);
+  const cx=cv.getContext("2d"); cx.drawImage(img,0,0,cv.width,cv.height);
+  try{
+    const id=cx.getImageData(0,0,cv.width,cv.height), dd=id.data;
+    for(let i=0;i<dd.length;i+=4){ const g=0.299*dd[i]+0.587*dd[i+1]+0.114*dd[i+2]; const v=g>140?255:(g<90?0:g); dd[i]=dd[i+1]=dd[i+2]=v; }
+    cx.putImageData(id,0,0);
+  }catch(e){ /* canvas tainted: segue com a imagem original */ }
+  const pre=cv.toDataURL("image/png");
+  const res=await Tesseract.recognize(pre,"por+eng",{logger:m=>{ if(progCb&&m.status==="recognizing text"&&m.progress) progCb(m.progress); }});
+  return {texto:res.data.text||"",prev:pre};
+}
+ocrFile.onchange=()=>{ const f=ocrFile.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ocrDataUrl=r.result; ocrPrev.src=ocrDataUrl; ocrPrev.hidden=false;}; r.readAsDataURL(f); };
+document.getElementById("btnRodar").onclick=async()=>{
+  if(!ocrDataUrl) return alert("Escolha primeiro a foto.");
+  const img=await loadImg(ocrDataUrl);
+  const cv=document.createElement("canvas");
+  cv.width=img.height; cv.height=img.width;
+  const cx=cv.getContext("2d");
+  cx.translate(cv.width/2,cv.height/2); cx.rotate(Math.PI/2); cx.drawImage(img,-img.width/2,-img.height/2);
+  ocrDataUrl=cv.toDataURL("image/jpeg",0.92);
+  ocrPrev.src=ocrDataUrl; ocrPrev.hidden=false;
+};
+document.getElementById("btnOCR").onclick=async()=>{
+  if(!ocrDataUrl) return alert("Escolha primeiro a foto/print do ecrã.");
+  desbloquearSom();
+  const st=document.getElementById("ocrStatus"), wrap=document.getElementById("ocrProgWrap"), bar=document.getElementById("ocrProg");
+  st.textContent="A preparar imagem…"; wrap.hidden=false;
+  try{
+    const {texto:txt,prev}=await ocrLerTexto(ocrDataUrl,p=>{ bar.style.width=Math.round(p*100)+"%"; st.textContent=`A ler… ${Math.round(p*100)}%`; });
+    ocrPrev.src=prev;
+    st.textContent="A ler… isto demora ~10–20s na 1ª vez.";
+    const info=extrairTaxilink(txt);
+    const mp=pracaAuto(txt,info);
+    if(mp){ document.getElementById("ocrPraca").value=mp.id; }
+    const mcs=extrairMarcacoes(txt);
+    if(mcs.length){ const gM=guardarMarcacoes(mcs,document.getElementById("ocrFonte").value); if(gM.n) toast(`📅 ${gM.n} marcação(ões) — alerta sonoro armado 🔊`); }
+    renderAuto(info);
+    st.textContent="Leitura pronta ✔ — confirme em baixo com 1 toque.";
+    if(mp) st.textContent+=` Praça detetada: ${mp.nome}.`;
+  }catch(e){ console.error(e); st.textContent="Falha no OCR: "+e.message; }
+  finally{ wrap.hidden=true; }
+};
+function loadImg(src){ return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;}); }
+// ===== Vigia contínua: partilha o ecrã 1x, lê sozinha em intervalo =====
+const VIG={on:false,stream:null,timer:null,busy:false,n:0,vistas:new Set()};
+function vigLog(html,ok){
+  const box=document.getElementById("vigLog");
+  const d=document.createElement("div");
+  d.className=ok?"ok":"stationrow";
+  d.style.marginTop="8px";
+  d.innerHTML=`<span class="muted">${horaHM()}</span> — ${html}`;
+  box.prepend(d);
+  while(box.children.length>12) box.lastChild.remove();
+}
+function vigStatus(t){ document.getElementById("vigStatus").innerHTML=t; }
+document.getElementById("btnVigiaStart").onclick=async()=>{
+  if(VIG.on) return;
+  desbloquearSom();
+  // Na app nativa a captura vem do Android (MediaProjection) — sem partilha do navegador
+  if(window.TaxiNative){
+    try{
+      window.TaxiNative.startWatch();
+      VIG.on=true; VIG.n=0;
+      document.getElementById("vigVideo").hidden=true;
+      document.getElementById("btnVigiaStart").disabled=true;
+      document.getElementById("btnVigiaStop").disabled=false;
+      vigStatus('<span class="live-dot dot-g"></span><b>A vigiar.</b> Abra a Taxi-Link / TaxiDigital — cada leitura entra sozinha.');
+      toast("Vigia ligada ✔ — abra a Taxi-Link");
+    }catch(e){ vigStatus("Não consegui ligar a vigia nativa."); }
+    return;
+  }
+  const v=document.getElementById("vigVideo");
+  try{
+    if(!navigator.mediaDevices||typeof navigator.mediaDevices.getDisplayMedia!=="function")
+      throw {name:"SemSuporte"};
+    const stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+    VIG.stream=stream; VIG.on=true; VIG.n=0;
+    v.srcObject=stream; v.hidden=false;
+    try{ await v.play(); }catch{}
+    stream.getVideoTracks()[0].addEventListener("ended",()=>pararVigia("Partilha terminada pelo sistema."));
+    document.getElementById("btnVigiaStart").disabled=true;
+    document.getElementById("btnVigiaStop").disabled=false;
+    vigStatus('<span class="live-dot dot-g"></span><b>A vigiar.</b> Abra a Taxi-Link / TaxiDigital — cada leitura entra sozinha.');
+    toast("Vigia ligada ✔ — abra a Taxi-Link");
+    vigTick();
+    VIG.timer=setInterval(vigTick,30000);
+  }catch(e){
+    const n=(e&&e.name)||"";
+    if(n==="SemSuporte"||n==="NotSupportedError"||n==="TypeError")
+      vigStatus('<span class="live-dot dot-r"></span>Este navegador <b>não suporta partilha de ecrã</b>. Abra com o <b>Chrome atualizado</b> — ou use «Ler um print» abaixo, que funciona sempre.');
+    else if(n==="NotAllowedError"||n==="AbortError")
+      vigStatus('Partilha cancelada — prima <b>Iniciar</b> e escolha <b>Ecrã inteiro</b> (não «Uma janela»).');
+    else
+      vigStatus('Não consegui ligar a vigia ('+esc(n||"erro")+'). Use «Ler um print» abaixo.');
+  }
+};
+function pararVigia(msg){
+  VIG.on=false; clearInterval(VIG.timer); VIG.timer=null;
+  try{ if(window.TaxiNative) window.TaxiNative.stopWatch(); }catch{}
+  try{ (VIG.stream||{getTracks:()=>[]}).getTracks().forEach(t=>t.stop()); }catch{}
+  VIG.stream=null;
+  document.getElementById("vigVideo").hidden=true;
+  document.getElementById("btnVigiaStart").disabled=false;
+  document.getElementById("btnVigiaStop").disabled=true;
+  vigStatus(msg||"Parada.");
+}
+document.getElementById("btnVigiaStop").onclick=()=>{ pararVigia(); toast("Vigia parada"); };
+async function vigTick(){
+  if(!VIG.on||VIG.busy) return;
+  const v=document.getElementById("vigVideo");
+  if(!v.videoWidth){ return; } // ainda a ligar
+  VIG.busy=true;
+  try{
+    const cv=document.getElementById("vigCanvas");
+    const sc=Math.min(1,1100/v.videoWidth);
+    cv.width=Math.round(v.videoWidth*sc); cv.height=Math.round(v.videoHeight*sc);
+    cv.getContext("2d").drawImage(v,0,0,cv.width,cv.height);
+    await vigiaLer(cv.toDataURL("image/png"));
+  }catch(e){ vigLog("Falha de leitura: "+esc(e.message||e)); }
+  finally{ VIG.busy=false; }
+}
+// Canal da app nativa (WebView): frames chegam por aqui em vez do getDisplayMedia
+window.__onFrame=async(url)=>{
+  if(!VIG.on||VIG.busy||!url) return;
+  VIG.busy=true;
+  try{ await vigiaLer(url); }catch(e){ vigLog("Falha de leitura: "+esc(e.message||e)); }
+  finally{ VIG.busy=false; }
+};
+// Contagem recente para os alarmes nativos (-1 = sem dados)
+window.__contagem=function(pid){
+  try{
+    var ls=S.leituras.filter(function(x){return x.pracaId===pid;}).sort(function(a,b){return b.ts-a.ts;});
+    if(!ls.length||Date.now()-ls[0].ts>45*60000) return -1;
+    return ls[0].n;
+  }catch(e){ return -1; }
+};
+async function vigiaLer(url){
+  try{
+    const {texto}=await ocrLerTexto(url,null);
+    VIG.n++;
+    const info=extrairTaxilink(texto);
+    // Fonte: Taxi-Link deteta-se pelos marcadores; senão usa a escolhida para o print
+    const fonte=/TAXI-LINK|OC\s*\/\s*15|T[AÁ]XIS\s+NA\s+PRA[CÇ]A|LUGARES|\bEM\s*PRA[CÇ]A\b|\bNA\s*FILA\b/i.test(texto)?S.appA:(/TAXI.?DIGITAL|IZZYMOVE|CNTD|PENDENTES\/OFERTAS|COMUNICA[CÇ][AÃ]O COM A CENTRAL|\bTX\b|PT\./i.test(texto)?S.appB:document.getElementById("ocrFonte").value);
+    // Marcações: qualquer ecrã pode trazer reservas — guarda e arma o alerta sonoro
+    const mcsV=extrairMarcacoes(texto);
+    if(mcsV.length){ const gM=guardarMarcacoes(mcsV,fonte); if(gM.n) vigLog(`📅 <b>${gM.n} marcação(ões)</b> guardada(s)${gM.pracas.length?` · novas praças: ${gM.pracas.map(esc).join(", ")}`:""} — alerta 20 min antes da queda, com o estado da praça.`,true); }
+    // Ecrã "lista de praças": atualiza todas as praças conhecidas de uma vez
+    if(info.lista&&info.lista.length){
+      let nG=0; const novas=[];
+      for(const r of info.lista){
+        const mt=matchPracaId(r.nome);
+        if(mt){ S.leituras.push({id:uid(),pracaId:mt.id,fonte,n:r.n,ts:Date.now(),metodo:"vigia-auto",ecra:"lista",saidas15:r.saidas15,det:{distanciaM:r.dist}}); nG++; }
+        else if(!VIG.vistas.has(norm(r.nome))){ VIG.vistas.add(norm(r.nome)); novas.push(r.nome); }
+      }
+      if(nG){ save(); vigLog(`📋 <b>Lista:</b> ${nG} praças atualizadas — ${info.lista.map(r=>`${esc(r.nome)} ${r.n}/${r.saidas15}`).join(" · ")}${novas.length?` <span class="muted">Novas ignoradas: ${novas.map(esc).join(", ")}.</span>`:""}`,true); }
+      else vigLog(`Leitura #${VIG.n}: lista sem praças conhecidas (${info.lista.map(r=>esc(r.nome)).join(", ")}). Adicione-as no separador Praças.`);
+      return;
+    }
+    // Praça 100% pelo nome no ecrã (Taxi-Link ou cabeçalho TaxiDigital) — faça scroll à vontade
+    const mpV=pracaAuto(texto,info);
+    const pracaId=mpV?mpV.id:null;
+    const ocupado=info.tdStatus&&info.tdStatus!=="LIVRE";
+    if(ocupado){ vigLog(`Leitura #${VIG.n} ignorada — estado <b>${esc(info.tdStatus)}</b>, não é fila.`); return; }
+    if(info.emEspera!=null||info.saidas15!=null){
+      let nV=info.emEspera;
+      if(nV==null&&pracaId) nV=herdarEmEspera(pracaId); // só saídas lidas: herda última contagem
+      // Evita lixo: só guarda com praça reconhecida e (licenças/matrículas ou saídas15 ou nº plausível)
+      if(pracaId&&nV!=null&&(info.licencas.length||info.placas.length||info.saidas15!=null||nV<=120)){
+        const reg={id:uid(),pracaId,fonte,n:nV,ts:Date.now(),metodo:"vigia-auto",ecra:ecraFinal(info.ecra),det:{licencas:info.licencas.slice(0,20),placas:info.placas.slice(0,20),posicao:info.posicao,tempoPraca:info.tempoPraca,mesmaPrioridade:info.mesmaPrioridade,distanciaM:info.distanciaM,tempos:info.tempos}};
+        if(info.saidas15!=null) reg.saidas15=info.saidas15;
+        S.leituras.push(reg); save();
+        vigLog(`${reg.ecra==="pesquisa"?"🔍":reg.ecra==="lista"?"📋":"🚕"} <b>${nV}</b> em espera${info.saidas15!=null?` · 📞 <b>${info.saidas15} saídas/15min</b> (${(info.saidas15*4).toFixed(0)}/h)`:""}${info.licencas.length?` · 🪪 ${info.licencas.slice(0,4).map(esc).join(", ")}${info.licencas.length>4?"…":""}`:(info.placas.length?` · 🔢 ${info.placas.slice(0,4).map(esc).join(", ")}${info.placas.length>4?"…":""}`:"")}${info.posicao!=null?` · 📍 ${info.posicao}º`:""}${info.mesmaPrioridade!=null?` · 🥇 ${info.mesmaPrioridade}`:""}${info.distanciaM!=null?` · 📏 ${info.distanciaM} m`:""} <span class="muted">(${esc(fonte)} → ${esc(nomePraca(pracaId))}${mpV?(mpV.nova?" · nova praça":" · auto"):""}${reg.ecra==="pesquisa"?" · ecrã de pesquisa":""})</span>`,true);
+      }else{
+        vigLog(`Leitura #${VIG.n} ignorada — ${!pracaId?"praça não reconhecida no ecrã.":"sem contagem de espera nem histórico para herdar."}`);
+      }
+    }else{
+      vigLog(`Leitura #${VIG.n}: sem números — o ecrã atual não parece ser a fila/praça. <span class="muted">Abra a fila na Taxi-Link ou TaxiDigital.</span>`);
+    }
+  }catch(e){ vigLog("Falha de leitura: "+esc(e.message||e)); }
+  finally{ VIG.busy=false; }
+}
+
+/* ===== Chegadas: aviões + comboios + cruzeiros ===== */
+const LS_CHEG="taxi-chegadas-v2";
+let CHEG=loadCheg()||{air:null,trains:{},cruise:{nivel:0,data:""},ts:0};
+function loadCheg(){ try{ const r=localStorage.getItem(LS_CHEG); return r?JSON.parse(r):null; }catch{ return null; } }
+function saveCheg(){ try{ localStorage.setItem(LS_CHEG,JSON.stringify(CHEG)); }catch{} }
+function hojeISO(){ return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function horaHM(){ return new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}); }
+(function(){ const h=hojeISO(); if(!CHEG.cruise||CHEG.cruise.data!==h){ CHEG.cruise={nivel:0,data:h}; saveCheg(); } })();
+function norm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function ha(ts){ if(!ts) return "–"; const m=Math.max(0,Math.round((Date.now()-ts)/60000)); return m<1?"agora":m<60?`há ${m} min`:`há ${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; }
+async function fetchT(url,ms,ext,init){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms); const onExt=()=>c.abort(); if(ext){ if(ext.aborted) c.abort(); else ext.addEventListener("abort",onExt,{once:true}); } try{ const r=await fetch(url,{...(init||{}),signal:c.signal}); if(!r.ok) throw new Error("HTTP "+r.status); return r; }finally{ clearTimeout(t); if(ext) ext.removeEventListener("abort",onExt); } }
+// Teste de internet real: pedido opaco (no-cors) resolve sempre que há rede, sem precisar de CORS
+async function temInternet(ms=6000){ try{ const o={mode:"no-cors"}; if(AbortSignal.timeout) o.signal=AbortSignal.timeout(ms); await fetch("https://www.cp.pt/fe-config.json",o); return true; }catch{ return false; } }
+
+const LIS={lat:38.7742,lon:-9.1342};
+// Indicativo (3 letras) → companhia — as mais vistas em Lisboa
+const CIAS={TAP:"TAP",PGA:"Portugália",RYR:"Ryanair",EZY:"easyJet",EJU:"easyJet",EXS:"Jet2",VLG:"Vueling",IBS:"Iberia",EIN:"Aer Lingus",DLH:"Lufthansa",EWG:"Eurowings",AFR:"Air France",HOP:"Air France",KLM:"KLM",TRA:"Transavia",BAW:"British Airways",SWR:"Swiss",BEL:"Brussels Airlines",AZA:"ITA Airways",THY:"Turkish Airlines",UAE:"Emirates",QTR:"Qatar Airways",RAM:"Royal Air Maroc",TUI:"TUI fly",WZZ:"Wizz Air",VOE:"Volotea",AEE:"Aegean",LOT:"LOT",FIN:"Finnair",SAS:"SAS",DLT:"Delta",UAL:"United",AAY:"Allegiant",CLX:"Cargolux",GTI:"Atlas Air",BOX:"AeroLogic",FDH:"Air Nostrum",NAX:"Norwegian",IBE:"Iberia"};
+function ciaDe(cs){ const m=String(cs||"").toUpperCase().match(/^([A-Z]{3})/); return m?CIAS[m[1]]||null:null; }
+const CP_STATIONS=[
+  {id:"94-31039",nome:"Oriente",keys:["oriente"]},
+  {id:"94-30007",nome:"Santa Apolónia",keys:["apolonia"]},
+  {id:"94-59006",nome:"Rossio",keys:["rossio"]},
+  {id:"94-69005",nome:"Cais do Sodré",keys:["sodre","cais"]},
+  {id:"94-66076",nome:"Sete Rios",keys:["sete rios"]},
+  {id:"94-66050",nome:"Entrecampos",keys:["entrecampos"]}
+];
+const AIR_KEYS=["aeroporto","airport","portela"];
+const CRZ_KEYS=["tabaco","cruzeiro","cruise","terminal","alfama","terreiro","sodre","cais","apolonia","santa"];
+// Chaves públicas servidas pelo próprio site da CP (www.cp.pt/fe-config.json). A app tenta renová-las
+// sozinha em cada arranque; estes valores são apenas o recurso se a renovação falhar.
+const CP_FALLBACK={url:"https://api-gateway.cp.pt/cp/services/travel-api",key:"ca3923e4-1d3c-424f-a3d0-9554cf3ef859",id:"1483ea620b920be6328dcf89e808937a",sec:"74bd06d5a2715c64c2f848c5cdb56e6b"};
+
+function distKm(la1,lo1,la2,lo2){ const R=6371,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180; const a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(a)); }
+
+/* --- Voos --- */
+let airBusy=false;
+async function atualizaVoos(){
+  if(airBusy) return; airBusy=true;
+  const st=document.getElementById("airStatus");
+  st.innerHTML='<span class="live-dot dot-y"></span><span class="spin">↻</span> A pedir posições de aviões…';
+  const ADSB_LOL=`https://api.adsb.lol/v2/lat/${LIS.lat}/lon/${LIS.lon}/dist/45`;
+  const OD3=`https://opendata.adsb.fi/api/v3/lat/${LIS.lat}/lon/${LIS.lon}/dist/25`;
+  const OSKY=`https://opensky-network.org/api/states/all?lamin=38.4&lamax=39.1&lomin=-9.7&lomax=-8.7`;
+  const FR24=`https://api.flightradar24.com/common/v1/airport.json?code=lis&plugin[]=schedule&plugin-setting[schedule][mode]=arrivals&limit=30&page=1`;
+  const cand=[
+    ["adsb.fi",OD3,9000,parseAdsb],["adsb.lol",ADSB_LOL,9000,parseAdsb],
+    ["proxy·fi","https://api.cors.lol/?url="+encodeURIComponent(OD3),12000,parseAdsb],
+    ["proxy·lol","https://api.cors.lol/?url="+encodeURIComponent(ADSB_LOL),12000,parseAdsb],
+    ["allorigins·fi","https://api.allorigins.win/raw?url="+encodeURIComponent(OD3),15000,parseAdsb],
+    ["allorigins·lol","https://api.allorigins.win/raw?url="+encodeURIComponent(ADSB_LOL),15000,parseAdsb],
+    ["opensky",OSKY,9000,parseOpenSky],["FR24",FR24,10000,parseFR24]
+  ];
+  const shared=new AbortController();
+  try{
+    const win=await Promise.any(cand.map(([f,u,ms,ps])=>(async()=>{ const j=await (await fetchT(u,ms,shared.signal)).json(); const p=ps(j); if(!p||!p.total) throw new Error("vazio"); return {p,f}; })()));
+    shared.abort();
+    CHEG.air={...win.p,fonte:win.f,ts:Date.now()}; saveCheg(); renderCheg(); airBusy=false; return;
+  }catch(e){ shared.abort(); /* todas falharam */ }
+  const online=await temInternet();
+  st.innerHTML='<span class="live-dot dot-r"></span>'+(online
+    ?'As fontes de voos estão a bloquear o acesso automático. A sua internet está bem — toque em Atualizar para tentar de novo, ou veja as chegadas oficiais no botão ANA.'
+    :'Parece não haver internet. Ligue os dados/Wi-Fi e tente de novo.')+(CHEG.air?` <span class="muted">Último valor: ${ha(CHEG.air.ts)}.</span>`:"")+ ' <span class="muted">Picos típicos LIS: 7–10h, 12–15h e 18–22h.</span>';
+  airBusy=false; renderChegNums();
+}
+function parseAdsb(j){
+  if(!j||!Array.isArray(j.ac)) throw new Error("formato ADS-B");
+  const ac=j.ac; const out=[];
+  for(const a of ac){
+    if(a.lat==null||a.lon==null) continue;
+    const d=distKm(LIS.lat,LIS.lon,a.lat,a.lon); if(d>45) continue;
+    const alt = a.alt_baro==="ground" ? 0 : (typeof a.alt_baro==="number"?a.alt_baro*0.3048:null);
+    const desc = (typeof a.baro_rate==="number"&&a.baro_rate<-200)||(alt!=null&&alt<1200);
+    const fl=(a.flight||"").trim(), rg=(a.r||"").trim(), cs=fl||rg||a.hex||null;
+    if(!cs) continue; // sem identificação: não mostrar "?"
+    out.push({cs,cia:ciaDe(fl),alt:alt!=null?Math.round(alt):null,gs:a.gs?Math.round(a.gs*1.852):null,desc,d:Math.round(d)});
+  }
+  out.sort((x,y)=>(x.alt??99999)-(y.alt??99999));
+  return {total:out.length,aprox:out.filter(o=>o.alt!=null&&o.alt<2500&&(o.desc||o.d<25)).length,lista:out.slice(0,6)};
+}
+function parseOpenSky(j){
+  if(!j||!Array.isArray(j.states)) throw new Error("formato OpenSky");
+  const sts=j.states; const out=[];
+  for(const s of sts){
+    const lon=s[5],lat=s[6]; if(lat==null||lon==null) continue;
+    const d=distKm(LIS.lat,LIS.lon,lat,lon); if(d>45) continue;
+    const alt=s[7]!=null?Math.round(s[7]):null, gnd=!!s[8];
+    const desc=!gnd&&alt!=null&&alt<2500;
+    const cs1=((s[1]||s[0]||"?")+"").trim();
+    out.push({cs:cs1,cia:ciaDe(cs1),alt,gs:s[9]!=null?Math.round(s[9]*3.6):null,desc,d:Math.round(d)});
+  }
+  out.sort((x,y)=>(x.alt??99999)-(y.alt??99999));
+  return {total:out.length,aprox:out.filter(o=>o.desc&&o.d<30).length,lista:out.slice(0,6)};
+}
+function parseFR24(j){
+  const arr=j&&j.result&&j.result.response&&j.result.response.airport&&j.result.response.airport.pluginData&&j.result.response.airport.pluginData.schedule&&j.result.response.airport.pluginData.schedule.arrivals&&j.result.response.airport.pluginData.schedule.arrivals.data;
+  if(!Array.isArray(arr)) throw new Error("formato FR24");
+  const now=Date.now()/1000;
+  const aprox=arr.filter(a=>{ const t=a&&a.flight&&a.flight.time&&a.flight.time.scheduled&&a.flight.time.scheduled.arrival||0; return t>now-1800&&t<now+5400; }).length;
+  const lista=arr.map(a=>a&&a.flight||{}).map(f=>{
+    const cs=String(f.callsign||f.flight||(f.identification&&(f.identification.callsign||f.identification.number))||"").trim();
+    const t=f.time&&f.time.scheduled&&f.time.scheduled.arrival;
+    return {cs:cs||null,cia:cs?ciaDe(cs):null,alt:null,gs:null,desc:false,d:null,h:t||null};
+  }).filter(o=>o.cs&&o.h).sort((a,b)=>a.h-b.h).slice(0,6);
+  if(!lista.length) throw new Error("sem identificações");
+  return {total:arr.length,aprox,lista};
+}
+function renderChegNums(){
+  const a=CHEG.air;
+  document.getElementById("airNum").textContent=a?a.total:"–";
+  document.getElementById("airAprox").textContent=a?a.aprox:"–";
+  document.getElementById("airIdade").textContent=a?ha(a.ts):"–";
+}
+
+/* --- Comboios (CP, tempo real) --- */
+let CP_CFG=null, trainBusy=false;
+async function cpConfig(force){
+  if(CP_CFG&&!force) return CP_CFG;
+  if(!force){
+    try{ const j=await (await fetchT("https://www.cp.pt/fe-config.json",5000)).json();
+      if(j.travelApiKey){ CP_CFG={url:j.travelApiUrl,key:j.travelApiKey,id:j.xcck,sec:j.xccs,via:"site CP"}; return CP_CFG; } }catch(e){}
+  }
+  try{ const j=await (await fetchT("https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.cp.pt/fe-config.json"),10000)).json();
+    if(j.travelApiKey){ CP_CFG={url:j.travelApiUrl,key:j.travelApiKey,id:j.xcck,sec:j.xccs,via:"proxy"}; return CP_CFG; } }catch(e){}
+  if(!force){ CP_CFG={...CP_FALLBACK,via:"reserva"}; return CP_CFG; }
+  throw new Error("sem chaves CP");
+}
+function cpHeaders(c){ return {"x-api-key":c.key,"x-cp-connect-id":c.id,"x-cp-connect-secret":c.sec,"Accept":"application/json"}; }
+async function cpTimetable(cfg,id,data){
+  const url=c=>c.url+`/stations/${id}/timetable/${data}`;
+  try{ return await (await fetchT(url(cfg),12000,null,{headers:cpHeaders(cfg)})).json(); }
+  catch(e){
+    if(/^HTTP (401|403)/.test(e.message)){ const fresh=await cpConfig(true); return await (await fetchT(url(fresh),12000,null,{headers:cpHeaders(fresh)})).json(); }
+    throw e;
+  }
+}
+function min2hm(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
+function hojeMais(dias){ return new Date(Date.now()-new Date().getTimezoneOffset()*60000+dias*86400000).toISOString().slice(0,10); }
+async function atualizaComboios(){
+  if(trainBusy) return; trainBusy=true;
+  const st=document.getElementById("trainStatus");
+  st.innerHTML='<span class="live-dot dot-y"></span><span class="spin">↻</span> A pedir chegadas à CP…';
+  try{
+    const cfg=await cpConfig(); const hoje=hojeISO(), agoraMin=hm2min(horaHM());
+    const inWin=t=>{ const d=(hm2min(t)-agoraMin+1440)%1440; return d<=45||d>=1430; }; // −10..+45 min, atravessa a meia-noite
+    const res=await Promise.allSettled(CP_STATIONS.map(async (s)=>{
+      const j=await cpTimetable(cfg,s.id,hoje); const stops=j.stationStops||[];
+      const ch=stops.filter(x=>x.arrivalTime&&inWin(x.arrivalTime)).sort((a,b)=>a.arrivalTime<b.arrivalTime?-1:1);
+      const byDist=(a,b)=>((hm2min(a.arrivalTime)-agoraMin+1440)%1440)-((hm2min(b.arrivalTime)-agoraMin+1440)%1440);
+      const fut=stops.filter(x=>x.arrivalTime&&((hm2min(x.arrivalTime)-agoraMin+1440)%1440)<=720).sort(byDist);
+      return {id:s.id,n45:ch.length,list:ch.slice(0,3).map(x=>({h:x.arrivalTime,org:x.trainOrigin?x.trainOrigin.designation:"?",at:x.delay})),nextH:fut.length?fut[0].arrivalTime:null,total:stops.length,ts:Date.now()};
+    }));
+    res.forEach((r,i)=>{
+      if(r.status==="fulfilled"){ CHEG.trains[r.value.id]={n45:r.value.n45,list:r.value.list,nextH:r.value.nextH,total:r.value.total,ts:r.value.ts}; }
+      else{ const id=CP_STATIONS[i].id; CHEG.trains[id]={...(CHEG.trains[id]||{n45:0,list:[]}),err:String((r.reason&&r.reason.message)||r.reason||"falha de rede"),ts:Date.now()}; }
+    });
+    // Madrugada: se já não há nada hoje, procura a primeira chegada de amanhã
+    const semFut=CP_STATIONS.filter(s=>{ const t=CHEG.trains[s.id]; return t&&!t.nextH&&!t.err; });
+    if(semFut.length){
+      const amanha=hojeMais(1);
+      const res2=await Promise.allSettled(semFut.map(async s=>{
+        const j=await cpTimetable(await cpConfig(),s.id,amanha);
+        const st2=((j.stationStops||[]).filter(x=>x.arrivalTime)).sort((a,b)=>a.arrivalTime<b.arrivalTime?-1:1);
+        return {id:s.id,nextH:st2.length?st2[0].arrivalTime+" (+1)":null};
+      }));
+      res2.forEach(r=>{ if(r.status==="fulfilled"&&r.value.nextH&&CHEG.trains[r.value.id]) CHEG.trains[r.value.id].nextH=r.value.nextH; });
+    }
+    saveCheg(); renderCheg();
+  }finally{ trainBusy=false; }
+}
+function plusMin(hm,m){ const [h,mn]=hm.split(":").map(Number); const d=new Date(); d.setHours(h,mn+m,0,0); return d.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}); }
+function hm2min(hm){ const [h,m]=String(hm).split(":").map(Number); return h*60+m; }
+
+/* --- Bónus de procura por praça --- */
+function bonusProcura(nome){
+  const n=norm(nome); let f=1; const tags=[];
+  const a=CHEG.air;
+  if(a&&a.aprox!=null&&AIR_KEYS.some(k=>n.includes(k))){ const b=Math.min(1,a.aprox/5)*0.8; if(b>0.02){ f*=1+b; tags.push(`✈️ ${a.aprox} a aterrar`); } }
+  for(const s of CP_STATIONS){
+    const t=CHEG.trains[s.id];
+    if(t&&t.n45>0&&s.keys.some(k=>n.includes(k))){ const b=Math.min(1,t.n45/4)*0.6; f*=1+b; tags.push(`🚂 ${t.n45} comboios`); }
+  }
+  const cn=CHEG.cruise||{nivel:0};
+  if(cn.nivel>0&&CRZ_KEYS.some(k=>n.includes(k))){ const b=[0,0.5,0.8,1.2][cn.nivel]||0; f*=1+b; tags.push("🛳️ navio no porto"); }
+  return {f,tags};
+}
+
+/* --- Render --- */
+function renderCheg(){
+  renderChegNums();
+  const a=CHEG.air;
+  const st=document.getElementById("airStatus");
+  if(a){ st.innerHTML=`<span class="live-dot ${Date.now()-a.ts<5*60000?"dot-g":"dot-y"}"></span>${a.total} aviões no raio · ${a.aprox} a aterrar · fonte ${esc(a.fonte)} · ${ha(a.ts)}.`; }
+  const al=document.getElementById("airList");
+  al.innerHTML=(a&&a.lista&&a.lista.length)? a.lista.map(o=>{ const esq=o.h?("prev. "+new Date(o.h*1000).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})):(o.alt!=null?(o.alt+" m"):"—"); const dir=o.h?"chegada programada":`${o.gs!=null?(o.gs+" km/h"):"—"}${o.d!=null?(" · "+o.d+" km"):""}`; return `<div class="flightrow"><span><b>${esc(o.cs)}</b>${o.cia?` · ${esc(o.cia)}`:""} ${o.desc?"🛬":""}</span><span class="muted">${esq} · ${dir}</span></div>`; }).join("") : '<p class="muted">Sem lista de voos.</p>';
+  // comboios
+  const anyT=CP_STATIONS.some(s=>CHEG.trains[s.id]);
+  const jan=`${min2hm(hm2min(horaHM())-10)}–${min2hm(hm2min(horaHM())+45)}`;
+  const via=CP_CFG?CP_CFG.via:"—";
+  document.getElementById("trainStatus").innerHTML=anyT
+    ? `<span class="live-dot dot-g"></span>Chegadas na janela ${jan} (hora · origem · atraso) · chaves: ${esc(via)}.`
+    : '<span class="live-dot dot-w"></span>Ainda sem dados — prima «Atualizar comboios».';
+  document.getElementById("trainRows").innerHTML=CP_STATIONS.map(s=>{
+    const t=CHEG.trains[s.id];
+    const prox=(t&&t.list&&t.list.length)? t.list.map(x=>`<div class="flightrow"><span><b>${x.h}</b> · ${esc(x.org)}</span><span class="muted">${x.at==null?"":(x.at>0?`+${x.at} min ⚠️`:"a horas ✔")}</span></div>`).join("") : (t&&t.nextH?`<div class="muted">Sem chegadas nos próximos 45 min — próxima hoje: <b>${t.nextH}</b>.</div>`:'<div class="muted">—</div>');
+    const diag=t?`<div class="muted">${t.total!=null?`${t.total} paragens hoje · `:""}atualizado ${ha(t.ts)}${t.err?` · <span style="color:var(--red)">erro: ${esc(t.err)}</span>`:""}</div>`:"";
+    return `<div class="stationrow"><div class="t">🚉 ${esc(s.nome)} ${t?`<span class="badge ${t.n45>0?"g":""}">${t.n45} chegadas</span>`:""}</div>${prox}${diag}</div>`;
+  }).join("");
+  // cruzeiro (sempre automático — sem inserção manual)
+  const cn=(CHEG.cruise||{}).nivel||0;
+  const auto=CHEG.cruiseAuto;
+  document.getElementById("cruiseHint").innerHTML=
+    (auto&&auto.lista&&auto.lista.length?`Hoje no porto: <b>${auto.lista.map(x=>esc(x.navio)+(x.horas&&x.horas!=="—"?` (${esc(x.horas)})`:"")).join(" · ")}</b> — lido sozinho ${ha(auto.ts)}.<br>`:(auto?`Calendário lido sozinho ${ha(auto.ts)}: <b>sem navios hoje</b>.<br>`:"A ler o calendário…<br>"))
+    +["","Pequeno movimento extra na zona ribeirinha.","Bom reforço: vá para Jardim do Tabaco / Santa Apolónia / Terreiro do Paço.","Pico de cruzeiros: a zona ribeirinha é prioritária hoje."][cn];
+  // resumo
+  const parts=[];
+  if(a) parts.push(`✈️ ${a.aprox} a aterrar`);
+  const tch=CP_STATIONS.filter(s=>CHEG.trains[s.id]&&CHEG.trains[s.id].n45>0);
+  if(tch.length) parts.push("🚂 "+tch.map(s=>`${s.nome.split(" ").pop()} ${CHEG.trains[s.id].n45}`).join(" · "));
+  if(cn>0) parts.push("🛳️ navio no porto");
+  document.getElementById("resumoCheg").innerHTML=parts.length? ("<b>Procura agora:</b> "+esc(parts.join(" · "))+" — já a contar no ranking «Ir para».") : "Sem sinais de procura de momento — o ranking usa só as suas leituras. Atualize acima.";
+}
+/* --- Cruzeiros (calendário lido sozinho) --- */
+let crzBusy=false;
+function parseCruzeiros(txt){
+  const out=[];
+  for(const ln of String(txt||"").split("\n")){
+    const m=ln.match(/^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*\[([^\]]+)\][^|]*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|/);
+    if(m) out.push({data:m[1],navio:m[2].trim(),horas:m[4].trim()});
+  }
+  return out;
+}
+async function atualizaCruzeiros(){
+  if(crzBusy) return; crzBusy=true;
+  try{
+    const U="https://shipitinerary.com/port/lisbon";
+    const cand=[
+      "https://r.jina.ai/"+U,
+      "https://api.allorigins.win/raw?url="+encodeURIComponent(U),
+      "https://api.cors.lol/?url="+encodeURIComponent(U)
+    ];
+    const shared=new AbortController();
+    let rows=null;
+    try{
+      const txt=await Promise.any(cand.map(u=>(async()=>await (await fetchT(u,15000,shared.signal)).text())()));
+      shared.abort();
+      rows=parseCruzeiros(txt);
+    }catch(e){ shared.abort(); }
+    if(rows&&rows.length){
+      const hoje=hojeISO();
+      const deHoje=rows.filter(r=>r.data===hoje);
+      const nivel=deHoje.length===0?0:deHoje.length===1?1:deHoje.length===2?2:3;
+      CHEG.cruiseAuto={nivel,lista:deHoje,ts:Date.now()};
+      CHEG.cruise={nivel,data:hoje};
+      saveCheg(); renderCheg();
+    }
+  }finally{ crzBusy=false; }
+}
+function refreshChegSePreciso(){
+  if(!CHEG.air||Date.now()-CHEG.air.ts>3*60000) atualizaVoos();
+  const tts=Object.values(CHEG.trains||{}); const newest=tts.length?Math.max(...tts.map(t=>t.ts||0)):0;
+  if(!tts.length||Date.now()-newest>10*60000) atualizaComboios();
+  if(!CHEG.cruiseAuto||Date.now()-CHEG.cruiseAuto.ts>6*3600000) atualizaCruzeiros();
+}
+document.getElementById("btnAirUpd").onclick=()=>atualizaVoos();
+document.getElementById("btnTrainUpd").onclick=()=>atualizaComboios();
+document.getElementById("btnTrainTest").onclick=async()=>{
+  const box=document.getElementById("trainTest"); box.innerHTML="A testar…";
+  const lin=[];
+  const step=async(n,fn)=>{ const t0=Date.now(); try{ const r=await fn(); lin.push(`✔️ ${n} (${Date.now()-t0} ms): ${r}`); return r; }catch(e){ lin.push(`❌ ${n}: ${e.message}`); return null; } };
+  await step("1) fe-config direto",()=>fetchT("https://www.cp.pt/fe-config.json",6000).then(r=>r.json()).then(j=>j.travelApiKey?"chave obtida":"sem chave"));
+  const p=await step("2) fe-config via proxy",()=>fetchT("https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.cp.pt/fe-config.json"),12000).then(r=>r.json()).then(j=>{ if(!j.travelApiKey) throw new Error("sem chave"); return j; }));
+  const cfg=p?{url:p.travelApiUrl,key:p.travelApiKey,id:p.xcck,sec:p.xccs}:{...CP_FALLBACK};
+  await step("3) horários Oriente de hoje",()=>fetchT(cfg.url+"/stations/94-31039/timetable/"+hojeISO(),15000,null,{headers:cpHeaders(cfg)}).then(r=>r.json()).then(j=>((j.stationStops||[]).length)+" paragens"));
+  box.innerHTML=lin.map(esc).join("<br>");
+};
+setInterval(()=>{ if(!document.hidden) atualizaVoos(); },120000);
+setInterval(()=>{ if(!document.hidden) atualizaComboios(); },180000);
+setInterval(()=>{ if(!document.hidden) atualizaCruzeiros(); },6*3600000);
+setInterval(verificaMarcacoes,60000);
+refreshChegSePreciso(); // arranca a buscar em 2º plano
+
+/* ===== Mini sempre visível (Picture-in-Picture) ===== */
+let pipVideo=null, pipTimer=null;
+function desenharMini(cv){
+  const cx=cv.getContext("2d");
+  cx.fillStyle="#111"; cx.fillRect(0,0,cv.width,cv.height);
+  cx.fillStyle="#ffd400"; cx.fillRect(0,0,cv.width,10);
+  const {rows}=calcRanking();
+  const l1=rows.length?("👉 "+rows[0].p.nome):"Sem dados ainda";
+  const b=rows[0];
+  const l2=rows.length?`${b.s.atual} em espera · ${b.s.taxaH.toFixed(1)}/h · espera ${fmtEspera(b.s.esperaH)}${b.dist?" · "+fmtDist(b.dist.m):""}`:"Ligue a vigia";
+  cx.fillStyle="#ffd400"; cx.font="bold 30px system-ui"; cx.fillText(l1.slice(0,26),14,54);
+  cx.fillStyle="#fff"; cx.font="20px system-ui"; cx.fillText(l2.slice(0,44),14,94);
+  cx.fillStyle="#a8adb5"; cx.font="16px system-ui";
+  cx.fillText("Táxi Praças · "+new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}),14,126);
+}
+function pararMini(){ clearInterval(pipTimer); pipTimer=null; pipVideo=null; }
+async function alternarMini(){
+  try{
+    if(document.pictureInPictureElement){ await document.exitPictureInPicture(); return; }
+    const cv=document.createElement("canvas"); cv.width=440; cv.height=140;
+    desenharMini(cv);
+    const v=document.createElement("video"); v.muted=true; v.playsInline=true;
+    v.srcObject=cv.captureStream(1);
+    v.addEventListener("leavepictureinpicture",pararMini,{once:true});
+    await v.play();
+    await v.requestPictureInPicture();
+    pipVideo=v;
+    pipTimer=setInterval(()=>desenharMini(cv),30000);
+    toast("Mini ligado ✔ — atualiza sozinho");
+  }catch(e){ alert("Mini-janela não suportada neste aparelho."); }
+}
+document.getElementById("btnMini").onclick=()=>alternarMini();
+
+/* ===== Marcações da Taxi-Link + alerta sonoro ===== */
+function extrairMarcacoes(txt){
+  const out=[];
+  const T=String(txt||"");
+  const push=(ts,pracaId,pracaNome,firme,aviso)=>{
+    if(!ts||isNaN(ts)) return;
+    const key=ts+"|"+(pracaId||"-");
+    if(out.some(o=>o.key===key)) return;
+    out.push({key,ts,pracaId:pracaId||null,pracaNome:pracaNome||null,firme:!!firme,aviso:aviso!=null?aviso:null});
+  };
+  const nomeEm=(ctx)=>{
+    const pm=(typeof matchPracaId==="function"&&matchPracaId(ctx))||(typeof pracaPorTexto==="function"&&pracaPorTexto(ctx))||null;
+    if(pm) return {id:pm.id,nome:pm.nome||pm.nome};
+    const reN=/PRA[CÇ]A\s+[A-ZÀ-Ú][A-ZÀ-Úa-zà-ú .\-']{1,40}/gi;
+    let nm=null, gm;
+    while((gm=reN.exec(ctx))) nm=gm[0]; // o nome mais próximo (último antes da data)
+    return nm?{id:null,nome:nm.trim().replace(/\s{2,}/g," ")}:null;
+  };
+  // Formato real Taxi-Link: "Praça Lumiar 11/10/2026, 15:40 (10m)"
+  const reD=/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*,\s*(\d{1,2})[:hH](\d{2})/g; let m, lastEnd=0;
+  while((m=reD.exec(T))){
+    const h=+m[4], mi=+m[5]; if(h>23||mi>59){ lastEnd=m.index+m[0].length; continue; }
+    let yy=m[3]?+m[3]:new Date().getFullYear(); if(yy<100) yy+=2000;
+    const ts=new Date(yy,+m[2]-1,+m[1],h,mi,0,0).getTime();
+    const ctx=T.slice(Math.max(lastEnd,m.index-150),m.index);
+    lastEnd=m.index+m[0].length;
+    if(ts<Date.now()-30*60000) continue; // expira 30 min depois
+    const pm=nomeEm(ctx);
+    const av=T.slice(m.index,m.index+120).match(/\(\s*(\d{1,3})\s*m\s*\)/);
+    push(ts,pm&&pm.id,pm&&pm.nome,true,av?+av[1]:null);
+  }
+  // Reserva genérica: "MARCAÇÃO ... 14:30" sem data (vale hoje/amanhã)
+  if(/MARCA[CÇ][AÃÕ][OE]S?|RESERVA|AGENDAD/i.test(T)){
+    const reH=/(\d{1,2})[:hH](\d{2})/g; let g;
+    while((g=reH.exec(T))){
+      const ctx=T.slice(Math.max(0,g.index-100),g.index+100);
+      if(!/MARCA[CÇ][AÃÕ][OE]S?|RESERVA|AGENDAD/i.test(ctx)) continue;
+      const h=+g[1], mi=+g[2]; if(h>23||mi>59) continue;
+      const base=new Date(); base.setSeconds(0,0); base.setHours(h,mi,0,0);
+      if(base.getTime()<Date.now()-5*60000) base.setDate(base.getDate()+1);
+      const pm=nomeEm(ctx);
+      push(base.getTime(),pm&&pm.id,pm&&pm.nome,false,null);
+    }
+  }
+  return out;
+}
+function guardarMarcacoes(list,fonte){
+  let nNovas=0; const novasPracas=[];
+  if(!S.marcacoes) S.marcacoes=[];
+  for(const b of list){
+    if(S.marcacoes.some(x=>x.key===b.key)) continue;
+    let pid=b.pracaId||null;
+    if(!pid&&b.pracaNome&&b.firme){
+      // Nome oficial vindo da app: cria a praça para as contagens se ligarem a ela
+      const ex=(S.pracas||[]).find(p=>norm(p.nome)===norm(b.pracaNome));
+      if(ex) pid=ex.id;
+      else { const np={id:uid(),nome:b.pracaNome}; S.pracas.push(np); pid=np.id; novasPracas.push(b.pracaNome); }
+    }
+    S.marcacoes.push({id:uid(),ts:b.ts,pracaId:pid,pracaNome:b.pracaNome,aviso:b.aviso,fonte:fonte||"",alerted:false});
+    nNovas++;
+  }
+  if(nNovas){ save(); refreshSelects(); renderPracas(); renderMarcBanner();
+    try{ if(window.TaxiNative) window.TaxiNative.setBookings(JSON.stringify(S.marcacoes)); }catch{}
+    if(window.Notification&&Notification.permission==="default"){ try{ Notification.requestPermission(); }catch{} } }
+  return {n:nNovas,pracas:novasPracas};
+}
+function ultimaContagem(pracaId){
+  if(!pracaId) return null;
+  const l=[...S.leituras].filter(x=>x.pracaId===pracaId).sort((a,b)=>b.ts-a.ts)[0];
+  if(!l||Date.now()-l.ts>45*60000) return null;
+  return l.n;
+}
+let audioCtx=null;
+function desbloquearSom(){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==="suspended") audioCtx.resume(); }catch{} }
+function apitar(){
+  try{
+    desbloquearSom();
+    const t0=audioCtx.currentTime;
+    for(let i=0;i<3;i++){
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type="sine"; o.frequency.value=880;
+      g.gain.setValueAtTime(0.001,t0+i*0.35);
+      g.gain.exponentialRampToValueAtTime(0.5,t0+i*0.35+0.03);
+      g.gain.exponentialRampToValueAtTime(0.001,t0+i*0.35+0.28);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t0+i*0.35); o.stop(t0+i*0.35+0.3);
+    }
+  }catch(e){}
+}
+function verificaMarcacoes(){
+  if(window.TaxiNative){
+    // Na app híbrida os alarmes exatos NATIVOS disparam (funcionam em 2º plano);
+    // aqui só se limpa expiradas e mostra a faixa.
+    if(!S.marcacoes||!S.marcacoes.length){ renderMarcBanner(); return; }
+    const ag=Date.now();
+    if(S.marcacoes.some(b=>ag-b.ts>=30*60000)){ S.marcacoes=S.marcacoes.filter(b=>ag-b.ts<30*60000); save(); }
+    renderMarcBanner();
+    return;
+  }
+  if(!S.marcacoes||!S.marcacoes.length){ renderMarcBanner(); return; }
+  const agora=Date.now(); let mudou=false;
+  const antes=S.marcacoes.length;
+  S.marcacoes=S.marcacoes.filter(b=>agora-b.ts<30*60000);
+  if(S.marcacoes.length!==antes) mudou=true;
+  for(const b of S.marcacoes){
+    // Queda = hora − aviso (ex. 15:40 − 10m = cai às 15:30). Alerta 20 min ANTES da
+    // queda (ex. 15:10) para dar tempo de lá chegar — sempre a dizer como está a praça.
+    const queda=b.aviso!=null?b.ts-b.aviso*60000:b.ts-20*60000;
+    const gatilho=b.aviso!=null?queda-20*60000:b.ts-20*60000;
+    if(!b.alerted&&agora>=gatilho-60000&&agora<b.ts+5*60000){
+      const n=ultimaContagem(b.pracaId);
+      {
+        b.alerted=true; mudou=true;
+        apitar();
+        try{ if(navigator.vibrate) navigator.vibrate([300,150,300]); }catch{}
+        const cai=b.aviso!=null?new Date(queda).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}):null;
+        const estado=n===0?" · praça VAZIA — vai!":(n!=null?` · ${n} carro(s) na praça`:" · sem dados da praça");
+        const msg=`📅 Marcação ${new Date(b.ts).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})}${b.pracaNome?" — "+b.pracaNome:""}${cai?` · cai às ${cai}`:` (em ${Math.max(1,Math.round((b.ts-agora)/60000))} min)`}${estado}`;
+        toast(msg+" 🔊");
+        try{ if(window.TaxiNative) window.TaxiNative.notify("Táxi Praças 🔊",msg); }catch{}
+        try{ if(window.Notification&&Notification.permission==="granted") new Notification("Táxi Praças",{body:msg}); }catch{}
+      }
+    }
+  }
+  if(mudou) save();
+  renderMarcBanner();
+}
+function renderMarcBanner(){
+  const box=document.getElementById("marcBanner");
+  if(!box) return;
+  const agora=Date.now();
+  const prox=(S.marcacoes||[]).filter(b=>b.ts>agora-30*60000).sort((a,b)=>a.ts-b.ts).slice(0,3);
+  if(!prox.length){ box.innerHTML=""; return; }
+  box.innerHTML=`<div class="card" style="border-color:var(--blue)">${prox.map(b=>{
+    const falta=Math.round((b.ts-agora)/60000);
+    const txt=falta<0?`a decorrer (começou há ${-falta} min)`:`em ${falta} min`;
+    const cai=b.aviso!=null?new Date(b.ts-b.aviso*60000).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}):null;
+    return `<div class="flightrow"><span>📅 <b>${new Date(b.ts).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})}</b>${b.pracaNome?" · "+esc(b.pracaNome):""}${cai?` <span class="muted">(cai ${cai})</span>`:""} <span class="muted">— ${txt}${b.alerted?" · 🔔":""}</span></span><button class="btn small dark" onclick="delMarc('${b.id}')">✕</button></div>`;
+  }).join("")}<div class="muted">Alerta 20 min antes da queda, com o estado da praça.</div></div>`;
+}
+window.delMarc=(id)=>{ S.marcacoes=(S.marcacoes||[]).filter(b=>b.id!==id); save(); renderMarcBanner(); try{ if(window.TaxiNative) window.TaxiNative.setBookings(JSON.stringify(S.marcacoes)); }catch{} };
+
+/* ===== init ===== */
+refreshSelects(); renderPracas(); renderRec(); renderCheg();
+try{ if(window.TaxiNative&&S.marcacoes&&S.marcacoes.length) window.TaxiNative.setBookings(JSON.stringify(S.marcacoes)); }catch{}
+document.querySelector('footer.tabbar button[data-tab="tab-pracas"]').addEventListener("click",renderPracas);
+</script>
+</body>
+</html>
