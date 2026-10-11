@@ -33,16 +33,17 @@ class ScreenCaptureService : Service() {
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
     private var reader: ImageReader? = null
+    private var bgThread: HandlerThread? = null
     private var handler: Handler? = null
     private var aProcessar = false
-    private var recognizer = TextRecognition.getClient(TextRecognizerOptions.Builder().build())
+    private var recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.Builder().build()) }
     private var sw = 0
     private var sh = 0
     private var dpi = 0
 
     private val tick = object : Runnable {
         override fun run() {
-            try { lerEcra() } catch (e: Exception) { }
+            try { lerEcra() } catch (t: Throwable) { }
             handler?.postDelayed(this, INTERVALO_MS)
             verificarMarcacoesBg()
         }
@@ -60,7 +61,8 @@ class ScreenCaptureService : Service() {
         sw = (metrics.widthPixels * k).toInt()
         sh = (metrics.heightPixels * k).toInt()
         dpi = metrics.densityDpi
-        handler = Handler(Looper.getMainLooper())
+        bgThread = HandlerThread("vigia").also { it.start() }
+        handler = Handler(bgThread!!.looper)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -103,7 +105,7 @@ class ScreenCaptureService : Service() {
             .setContentText(txt)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, "Parar", stop).build())
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "Parar", stop).build())
             .setOngoing(true)
             .build()
         if (Build.VERSION.SDK_INT >= 29)
@@ -331,6 +333,8 @@ class ScreenCaptureService : Service() {
 
     private fun pararTudo() {
         try { handler?.removeCallbacksAndMessages(null) } catch (e: Exception) { }
+        try { bgThread?.quitSafely() } catch (e: Exception) { }
+        bgThread = null
         try { display?.release() } catch (e: Exception) { }
         try { reader?.close() } catch (e: Exception) { }
         try { projection?.stop() } catch (e: Exception) { }

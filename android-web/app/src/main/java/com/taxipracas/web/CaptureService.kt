@@ -103,7 +103,7 @@ class CaptureService : Service() {
             .setContentText("A ler o ecrã sozinha")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, "Parar", stop).build())
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "Parar", stop).build())
             .setOngoing(true)
             .build()
         if (Build.VERSION.SDK_INT >= 29)

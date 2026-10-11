@@ -28,6 +28,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLogN.install(this)
         val scroll = ScrollView(this)
         val lay = LinearLayout(this)
         lay.orientation = LinearLayout.VERTICAL
@@ -53,6 +54,7 @@ class MainActivity : Activity() {
         titulo("🚕 Táxi Praças Auto")
         statusText = TextView(this)
         lay.addView(statusText)
+        CrashLogN.mostrarSeHouver(this, statusText)
 
         botao("▶️ Iniciar vigia") { pedirCaptura() }
         botao("⏹️ Parar vigia") {
@@ -116,7 +118,12 @@ class MainActivity : Activity() {
                 val i = Intent(this, ScreenCaptureService::class.java)
                 i.putExtra("code", resultCode)
                 i.putExtra("data", data)
-                if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
+                try {
+                    if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "O sistema bloqueou a vigia — com a app aberta, tente de novo.", Toast.LENGTH_LONG).show()
+                    return
+                }
                 Toast.makeText(this, "Vigia ligada ✔ — abra a Taxi-Link/TaxiDigital", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(this, "Partilha cancelada.", Toast.LENGTH_SHORT).show()
@@ -202,6 +209,52 @@ class MainActivity : Activity() {
             }
             @Suppress("UNUSED_VARIABLE")
             val ctx: Context = this
+        } catch (e: Exception) { }
+    }
+}
+
+// Apanhador de crashes: guarda o erro e mostra-o no próximo arranque.
+object CrashLogN {
+    private const val PREF = "crashlog"
+    private const val KEY = "trace"
+
+    fun install(ctx: Context) {
+        val app = ctx.applicationContext
+        val prev = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            try {
+                val sw = java.io.StringWriter()
+                e.printStackTrace(java.io.PrintWriter(sw))
+                app.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
+                    .putString(KEY, "$e\n$sw".take(4000)).apply()
+            } catch (e2: Exception) { }
+            try { prev?.uncaughtException(t, e) } catch (e3: Exception) { }
+        }
+    }
+
+    fun mostrarSeHouver(a: Activity, status: TextView) {
+        try {
+            val sp = a.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+            val t = sp.getString(KEY, null) ?: return
+            sp.edit().remove(KEY).apply()
+            a.runOnUiThread {
+                try {
+                    status.text = "⚠️ A app fechou com erro. Toque para ver."
+                    status.setOnClickListener {
+                        val tv = TextView(a)
+                        tv.text = t
+                        tv.setTextIsSelectable(true)
+                        tv.textSize = 11f
+                        val sc = ScrollView(a)
+                        sc.addView(tv)
+                        android.app.AlertDialog.Builder(a)
+                            .setTitle("Erro — envie-me este texto")
+                            .setView(sc)
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                } catch (e: Exception) { }
+            }
         } catch (e: Exception) { }
     }
 }

@@ -1,10 +1,13 @@
 package com.taxipracas.web
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -27,6 +30,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLog.install(this)
         web = WebView(this)
         setContentView(web)
         WebViewHolder.wv = web
@@ -52,6 +56,11 @@ class MainActivity : Activity() {
         }
         web.addJavascriptInterface(Bridge(this), "TaxiNative")
         web.loadUrl("file:///android_asset/taxi.html")
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            try { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7) } catch (e: Exception) { }
+        }
+        CrashLog.mostrarSeHouver(this)
     }
 
     fun pedirCaptura() {
@@ -81,7 +90,11 @@ class MainActivity : Activity() {
                 val i = Intent(this, CaptureService::class.java)
                 i.putExtra("code", resultCode)
                 i.putExtra("data", data)
-                startForegroundService(i)
+                try {
+                    startForegroundService(i)
+                } catch (e: Exception) {
+                    fout("O sistema bloqueou o arranque da vigia — com a app aberta, tente de novo.")
+                }
             } else {
                 fout("Partilha cancelada — escolha Ecrã inteiro.")
             }
@@ -100,4 +113,47 @@ class MainActivity : Activity() {
 
 object WebViewHolder {
     @Volatile var wv: WebView? = null
+}
+
+// Apanhador de crashes: guarda o erro e mostra-o no próximo arranque.
+object CrashLog {
+    private const val PREF = "crashlog"
+    private const val KEY = "trace"
+
+    fun install(ctx: Context) {
+        val app = ctx.applicationContext
+        val prev = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            try {
+                val sw = java.io.StringWriter()
+                e.printStackTrace(java.io.PrintWriter(sw))
+                app.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
+                    .putString(KEY, "$e\n$sw".take(4000)).apply()
+            } catch (e2: Exception) { }
+            try { prev?.uncaughtException(t, e) } catch (e3: Exception) { }
+        }
+    }
+
+    fun mostrarSeHouver(a: Activity) {
+        try {
+            val sp = a.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+            val t = sp.getString(KEY, null) ?: return
+            sp.edit().remove(KEY).apply()
+            a.runOnUiThread {
+                try {
+                    val tv = android.widget.TextView(a)
+                    tv.text = t
+                    tv.setTextIsSelectable(true)
+                    tv.textSize = 11f
+                    val sc = android.widget.ScrollView(a)
+                    sc.addView(tv)
+                    AlertDialog.Builder(a)
+                        .setTitle("A app fechou com este erro — envie-me o texto")
+                        .setView(sc)
+                        .setPositiveButton("OK", null)
+                        .show()
+                } catch (e: Exception) { }
+            }
+        } catch (e: Exception) { }
+    }
 }
