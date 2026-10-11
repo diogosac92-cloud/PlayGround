@@ -133,7 +133,7 @@ footer.tabbar button{font-size:10px;padding:6px 2px}
   <section id="tab-ocr" class="tab" hidden>
     <div class="card">
       <h2>👁️ Vigia — lê sozinha</h2>
-      <p class="muted">Prima <b>Iniciar</b>, escolha <b>Ecrã inteiro</b> e abra a <b>Taxi-Link / TaxiDigital</b>. Faça scroll à vontade — a praça é reconhecida sozinha em cada leitura.</p>
+      <p class="muted">Prima <b>Iniciar</b>, confirme <b>Começar agora</b> (grava o ecrã inteiro) e abra a <b>Taxi-Link / TaxiDigital</b>. Faça scroll à vontade — a praça é reconhecida sozinha em cada leitura.</p>
       <div class="row" style="margin-top:10px">
         <button class="btn" id="btnVigiaStart" style="flex:1">▶️ Iniciar</button>
         <button class="btn dark" id="btnVigiaStop" style="flex:1" disabled>⏹️ Parar</button>
@@ -800,15 +800,17 @@ const VIG={on:false,stream:null,timer:null,busy:false,n:0,vistas:new Set()};
 window.__vigiaNativa=function(ok){
   if(ok){
     VIG.on=true; VIG.n=0;
+    try{ localStorage.setItem("vigiaIntent","1"); }catch{}
     document.getElementById("btnVigiaStart").disabled=true;
     document.getElementById("btnVigiaStop").disabled=false;
     vigStatus('<span class="live-dot dot-g"></span><b>A vigiar.</b> Abra a Taxi-Link / TaxiDigital — cada leitura entra sozinha.');
     toast("Vigia ligada ✔ — abra a Taxi-Link");
   }else{
     VIG.on=false;
+    try{ localStorage.removeItem("vigiaIntent"); }catch{}
     document.getElementById("btnVigiaStart").disabled=false;
     document.getElementById("btnVigiaStop").disabled=true;
-    vigStatus('Partilha cancelada ou bloqueada — prima <b>Iniciar</b>, escolha <b>Ecrã inteiro</b> e <b>Começar agora</b>.');
+    vigStatus('Partilha cancelada ou bloqueada — prima <b>Iniciar</b> e depois <b>Começar agora</b>.');
   }
 };
 function vigLog(html,ok){
@@ -830,7 +832,7 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
     try{
       window.TaxiNative.startWatch();
       document.getElementById("vigVideo").hidden=true;
-      vigStatus('<span class="live-dot dot-y"></span>A pedir autorização… escolha <b>Ecrã inteiro</b> e <b>Começar agora</b>.');
+      vigStatus('<span class="live-dot dot-y"></span>A pedir autorização… prima <b>Começar agora</b>.');
       toast("Autorize a captura para a vigia arrancar");
     }catch(e){ vigStatus("Não consegui ligar a vigia nativa."); }
     return;
@@ -862,6 +864,7 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
 };
 function pararVigia(msg){
   VIG.on=false; clearInterval(VIG.timer); VIG.timer=null;
+  try{ localStorage.removeItem("vigiaIntent"); }catch{}
   try{ if(window.TaxiNative) window.TaxiNative.stopWatch(); }catch{}
   try{ (VIG.stream||{getTracks:()=>[]}).getTracks().forEach(t=>t.stop()); }catch{}
   VIG.stream=null;
@@ -1263,6 +1266,23 @@ setInterval(()=>{ if(!document.hidden) atualizaComboios(); },180000);
 setInterval(()=>{ if(!document.hidden) atualizaCruzeiros(); },6*3600000);
 setInterval(verificaMarcacoes,60000);
 refreshChegSePreciso(); // arranca a buscar em 2º plano
+// App instalada: mostra a versão + deteta se a vigia morreu sozinha (morte sem exceção Java)
+try{
+  if(window.TaxiNative){
+    const sub=document.querySelector("header .sub");
+    if(sub&&!sub.textContent.includes("app v")) sub.textContent+=" · app v1.1";
+    if(localStorage.getItem("vigiaIntent")==="1"){
+      let viva=false;
+      try{ viva=!!window.TaxiNative.isWatching(); }catch(e){}
+      if(viva){
+        window.__vigiaNativa(true);
+      }else{
+        localStorage.removeItem("vigiaIntent");
+        vigStatus('<span class="live-dot dot-r"></span>A vigia fechou sozinha — prima <b>Iniciar</b> de novo. Se fechar outra vez, reabra a app e envie-me o erro que aparecer.');
+      }
+    }
+  }
+}catch(e){}
 
 /* ===== Mini sempre visível (Picture-in-Picture) ===== */
 let pipVideo=null, pipTimer=null;
@@ -1281,6 +1301,18 @@ function desenharMini(cv){
 }
 function pararMini(){ clearInterval(pipTimer); pipTimer=null; pipVideo=null; }
 async function alternarMini(){
+  // Na app instalada usa a bolha nativa (o PiP do navegador falha em WebViews antigas)
+  if(window.TaxiNative&&typeof window.TaxiNative.mini==="function"){
+    try{
+      const {rows}=calcRanking();
+      const l1=rows.length?("👉 "+rows[0].p.nome):"Táxi Praças";
+      const b=rows[0];
+      const l2=rows.length?`${b.s.atual} em espera · ${b.s.taxaH.toFixed(1)}/h`:"A ler…";
+      window.TaxiNative.mini(l1,l2);
+      toast("Mini ✔ (toque nele para voltar)");
+    }catch(e){ alert("Mini-janela não suportada neste aparelho."); }
+    return;
+  }
   try{
     if(document.pictureInPictureElement){ await document.exitPictureInPicture(); return; }
     const cv=document.createElement("canvas"); cv.width=440; cv.height=140;

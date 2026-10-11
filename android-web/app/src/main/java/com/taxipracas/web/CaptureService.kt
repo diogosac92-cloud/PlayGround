@@ -35,6 +35,7 @@ class CaptureService : Service() {
         const val CH_ID = "vigia"
         const val NOTIF_ID = 42
         const val INTERVALO_MS = 30000L
+        @Volatile var aCorrer = false
     }
 
     private var projection: MediaProjection? = null
@@ -110,6 +111,7 @@ class CaptureService : Service() {
             startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         else
             startForeground(NOTIF_ID, n)
+        aCorrer = true
         handler?.post(tick)
         toastJs("Vigia nativa ligada ✔")
         return START_STICKY
@@ -180,6 +182,7 @@ class CaptureService : Service() {
     }
 
     private fun pararTudo() {
+        aCorrer = false
         try { handler?.removeCallbacksAndMessages(null) } catch (e: Exception) { }
         try { bgThread?.quitSafely() } catch (e: Exception) { }
         bgThread = null

@@ -69,6 +69,24 @@ class Bridge(activity: MainActivity) {
         } catch (e: Exception) { }
     }
 
+    // A vigia nativa está mesmo a correr?
+    @JavascriptInterface
+    fun isWatching(): Boolean {
+        return try { CaptureService.aCorrer } catch (e: Exception) { false }
+    }
+
+    // Mini nativo (bolha sobre as outras apps). Sem permissão, abre as definições.
+    @JavascriptInterface
+    fun mini(l1: String, l2: String) {
+        val a = act() ?: return
+        a.runOnUiThread {
+            try {
+                if (BubbleManager.visivel()) BubbleManager.hide(a)
+                else BubbleManager.show(a, l1, l2)
+            } catch (e: Exception) { }
+        }
+    }
+
     // HTTP sem CORS (a WebView bloqueia cp.pt/adsb por falta de cabeçalhos).
     // O JS chama httpGet(id,url,headers) e recebe window.__httpRes(id,ok,corpo).
     @JavascriptInterface

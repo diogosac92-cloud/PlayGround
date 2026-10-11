@@ -109,7 +109,7 @@ class MainActivity : Activity() {
                 }
             } else {
                 vigiaNativa(false)
-                fout("Partilha cancelada — escolha Ecrã inteiro.")
+                fout("Partilha cancelada.")
             }
         } else if (requestCode == REQ_FILE) {
             try { fileCb?.onReceiveValue(FileChooserParams.parseResult(resultCode, data)) }
