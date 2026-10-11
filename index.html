@@ -796,6 +796,8 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
   desbloquearSom();
   const v=document.getElementById("vigVideo");
   try{
+    if(!navigator.mediaDevices||typeof navigator.mediaDevices.getDisplayMedia!=="function")
+      throw {name:"SemSuporte"};
     const stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
     VIG.stream=stream; VIG.on=true; VIG.n=0;
     v.srcObject=stream; v.hidden=false;
@@ -807,7 +809,15 @@ document.getElementById("btnVigiaStart").onclick=async()=>{
     toast("Vigia ligada ✔ — abra a Taxi-Link");
     vigTick();
     VIG.timer=setInterval(vigTick,30000);
-  }catch(e){ vigStatus("Vigia não iniciada (partilha cancelada ou não suportada). No telemóvel, use o print abaixo."); }
+  }catch(e){
+    const n=(e&&e.name)||"";
+    if(n==="SemSuporte"||n==="NotSupportedError"||n==="TypeError")
+      vigStatus('<span class="live-dot dot-r"></span>Este navegador <b>não suporta partilha de ecrã</b>. Abra com o <b>Chrome atualizado</b> — ou use «Ler um print» abaixo, que funciona sempre.');
+    else if(n==="NotAllowedError"||n==="AbortError")
+      vigStatus('Partilha cancelada — prima <b>Iniciar</b> e escolha <b>Ecrã inteiro</b> (não «Uma janela»).');
+    else
+      vigStatus('Não consegui ligar a vigia ('+esc(n||"erro")+'). Use «Ler um print» abaixo.');
+  }
 };
 function pararVigia(msg){
   VIG.on=false; clearInterval(VIG.timer); VIG.timer=null;
