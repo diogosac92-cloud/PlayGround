@@ -17,6 +17,7 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
@@ -39,6 +40,7 @@ class CaptureService : Service() {
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
     private var reader: ImageReader? = null
+    private var bgThread: HandlerThread? = null
     private var handler: Handler? = null
     private var aProcessar = false
     private var sw = 0
@@ -47,7 +49,7 @@ class CaptureService : Service() {
 
     private val tick = object : Runnable {
         override fun run() {
-            try { capturar() } catch (e: Exception) { }
+            try { capturar() } catch (t: Throwable) { }
             handler?.postDelayed(this, INTERVALO_MS)
         }
     }
@@ -64,7 +66,8 @@ class CaptureService : Service() {
         sw = (metrics.widthPixels * k).toInt()
         sh = (metrics.heightPixels * k).toInt()
         dpi = metrics.densityDpi
-        handler = Handler(Looper.getMainLooper())
+        bgThread = HandlerThread("vigia").also { it.start() }
+        handler = Handler(bgThread!!.looper)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -134,6 +137,7 @@ class CaptureService : Service() {
             try { img.close() } catch (e: Exception) { }
             if (jpeg == null) { aProcessar = false; return }
             val b64 = Base64.encodeToString(jpeg, Base64.NO_WRAP)
+            if (b64.length > 700000) { aProcessar = false; return } // frame pesado: salta, protege a WebView
             val wv: WebView? = WebViewHolder.wv
             wv?.post {
                 try { wv.evaluateJavascript("window.__onFrame('data:image/jpeg;base64,$b64')", null) }
@@ -177,6 +181,8 @@ class CaptureService : Service() {
 
     private fun pararTudo() {
         try { handler?.removeCallbacksAndMessages(null) } catch (e: Exception) { }
+        try { bgThread?.quitSafely() } catch (e: Exception) { }
+        bgThread = null
         try { display?.release() } catch (e: Exception) { }
         try { reader?.close() } catch (e: Exception) { }
         try { projection?.stop() } catch (e: Exception) { }

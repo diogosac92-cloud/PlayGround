@@ -735,17 +735,19 @@ function renderAuto(info){
 const ocrFile=document.getElementById("ocrFile"), ocrPrev=document.getElementById("ocrPrev");
 let ocrDataUrl=null;
 // Pré-processa + OCR. Reutilizada pelo print único e pela vigia contínua.
-async function ocrLerTexto(dataUrl,progCb){
+async function ocrLerTexto(dataUrl,progCb,mini){
   const img=await loadImg(dataUrl);
-  const cv=document.createElement("canvas"); const k=Math.min(2, 1600/Math.max(img.width,img.height))+1;
-  cv.width=Math.round(img.width*k); cv.height=Math.round(img.height*k);
+  const cv=document.createElement("canvas");
+  let k=Math.min(2, 1600/Math.max(img.width,img.height))+1;
+  if(mini) k=Math.min(k, 1000/img.width); // vigia: chega 720px, não ampliar — OCR mais leve e rápido
+  cv.width=Math.max(1,Math.round(img.width*k)); cv.height=Math.max(1,Math.round(img.height*k));
   const cx=cv.getContext("2d"); cx.drawImage(img,0,0,cv.width,cv.height);
   try{
     const id=cx.getImageData(0,0,cv.width,cv.height), dd=id.data;
     for(let i=0;i<dd.length;i+=4){ const g=0.299*dd[i]+0.587*dd[i+1]+0.114*dd[i+2]; const v=g>140?255:(g<90?0:g); dd[i]=dd[i+1]=dd[i+2]=v; }
     cx.putImageData(id,0,0);
   }catch(e){ /* canvas tainted: segue com a imagem original */ }
-  const pre=cv.toDataURL("image/png");
+  const pre=mini?cv.toDataURL("image/jpeg",0.85):cv.toDataURL("image/png");
   const res=await Tesseract.recognize(pre,"por+eng",{logger:m=>{ if(progCb&&m.status==="recognizing text"&&m.progress) progCb(m.progress); }});
   return {texto:res.data.text||"",prev:pre};
 }
@@ -885,7 +887,7 @@ window.__contagem=function(pid){
 };
 async function vigiaLer(url){
   try{
-    const {texto}=await ocrLerTexto(url,null);
+    const {texto}=await ocrLerTexto(url,null,true); // modo leve: sem ampliar, JPEG
     VIG.n++;
     const info=extrairTaxilink(texto);
     // Fonte: Taxi-Link deteta-se pelos marcadores; senão usa a escolhida para o print
@@ -939,7 +941,29 @@ function horaHM(){ return new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",
 (function(){ const h=hojeISO(); if(!CHEG.cruise||CHEG.cruise.data!==h){ CHEG.cruise={nivel:0,data:h}; saveCheg(); } })();
 function norm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
 function ha(ts){ if(!ts) return "–"; const m=Math.max(0,Math.round((Date.now()-ts)/60000)); return m<1?"agora":m<60?`há ${m} min`:`há ${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; }
-async function fetchT(url,ms,ext,init){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms); const onExt=()=>c.abort(); if(ext){ if(ext.aborted) c.abort(); else ext.addEventListener("abort",onExt,{once:true}); } try{ const r=await fetch(url,{...(init||{}),signal:c.signal}); if(!r.ok) throw new Error("HTTP "+r.status); return r; }finally{ clearTimeout(t); if(ext) ext.removeEventListener("abort",onExt); } }
+async function fetchT(url,ms,ext,init){
+  const headers=(init&&init.headers)||{};
+  // Na app instalada o Android busca sem CORS (cp.pt/adsb bloqueiam o navegador) — tenta primeiro
+  if(window.TaxiNative&&typeof window.TaxiNative.httpGet==="function"){
+    try{
+      const j=await nativoGet(url,headers,ms);
+      return {ok:true,status:200,json:async()=>j};
+    }catch(e){ /* cai para o fetch normal */ }
+  }
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms); const onExt=()=>c.abort(); if(ext){ if(ext.aborted) c.abort(); else ext.addEventListener("abort",onExt,{once:true}); } try{ const r=await fetch(url,{...(init||{}),signal:c.signal}); if(!r.ok) throw new Error("HTTP "+r.status); return r; }finally{ clearTimeout(t); if(ext) ext.removeEventListener("abort",onExt); } }
+// Ponte HTTP nativa (só existe dentro da app Android instalada)
+let __httpSeq=0; const __httpPend={};
+window.__httpRes=(id,ok,corpo)=>{ const p=__httpPend[id]; if(!p) return; delete __httpPend[id]; clearTimeout(p.t); if(ok){ try{ p.ok(JSON.parse(corpo)); }catch(e){ p.no(new Error("resposta inválida")); } } else p.no(new Error(String(corpo).slice(0,140))); };
+function nativoGet(url,headers,ms){
+  return new Promise((ok,no)=>{
+    try{
+      const id="h"+(++__httpSeq)+"_"+Date.now();
+      const t=setTimeout(()=>{ if(__httpPend[id]){ delete __httpPend[id]; no(new Error("timeout nativo")); } },ms||20000);
+      __httpPend[id]={ok,no,t};
+      window.TaxiNative.httpGet(id,String(url),JSON.stringify(headers||{}));
+    }catch(e){ no(e); }
+  });
+}
 // Teste de internet real: pedido opaco (no-cors) resolve sempre que há rede, sem precisar de CORS
 async function temInternet(ms=6000){ try{ const o={mode:"no-cors"}; if(AbortSignal.timeout) o.signal=AbortSignal.timeout(ms); await fetch("https://www.cp.pt/fe-config.json",o); return true; }catch{ return false; } }
 
@@ -1044,14 +1068,29 @@ function renderChegNums(){
 
 /* --- Comboios (CP, tempo real) --- */
 let CP_CFG=null, trainBusy=false;
+const LS_CPKEYS="taxi-cpkeys-v1";
+function cpKeysCache(){ try{ const o=JSON.parse(localStorage.getItem(LS_CPKEYS)); if(o&&o.key&&o.id&&o.sec&&Date.now()-(o.ts||0)<24*3600000) return o; }catch{} return null; }
+function cpKeysSave(c){ try{ localStorage.setItem(LS_CPKEYS,JSON.stringify({url:c.url,key:c.key,id:c.id,sec:c.sec,ts:Date.now()})); }catch{} }
+async function buscaChaves(){
+  const FEC="https://www.cp.pt/fe-config.json";
+  const urls=[FEC,
+    "https://api.allorigins.win/raw?url="+encodeURIComponent(FEC),
+    "https://api.allorigins.win/get?url="+encodeURIComponent(FEC)];
+  const win=await Promise.any(urls.map(u=>(async()=>{
+    const j=await (await fetchT(u,12000)).json();
+    const o=j&&j.contents?JSON.parse(j.contents):j;
+    if(!o||!o.travelApiKey||!o.xcck||!o.xccs) throw new Error("sem chave");
+    return {url:o.travelApiUrl,key:o.travelApiKey,id:o.xcck,sec:o.xccs};
+  })()));
+  cpKeysSave(win); return win;
+}
 async function cpConfig(force){
   if(CP_CFG&&!force) return CP_CFG;
   if(!force){
-    try{ const j=await (await fetchT("https://www.cp.pt/fe-config.json",5000)).json();
-      if(j.travelApiKey){ CP_CFG={url:j.travelApiUrl,key:j.travelApiKey,id:j.xcck,sec:j.xccs,via:"site CP"}; return CP_CFG; } }catch(e){}
+    const c=cpKeysCache();
+    if(c){ CP_CFG={url:c.url,key:c.key,id:c.id,sec:c.sec,via:"cache"}; return CP_CFG; }
   }
-  try{ const j=await (await fetchT("https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.cp.pt/fe-config.json"),10000)).json();
-    if(j.travelApiKey){ CP_CFG={url:j.travelApiUrl,key:j.travelApiKey,id:j.xcck,sec:j.xccs,via:"proxy"}; return CP_CFG; } }catch(e){}
+  try{ const c=await buscaChaves(); CP_CFG={url:c.url,key:c.key,id:c.id,sec:c.sec,via:"rede"}; return CP_CFG; }catch(e){}
   if(!force){ CP_CFG={...CP_FALLBACK,via:"reserva"}; return CP_CFG; }
   throw new Error("sem chaves CP");
 }

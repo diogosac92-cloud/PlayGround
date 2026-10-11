@@ -68,6 +68,49 @@ class Bridge(activity: MainActivity) {
             a.runOnUiThread { Toast.makeText(a, msg, Toast.LENGTH_SHORT).show() }
         } catch (e: Exception) { }
     }
+
+    // HTTP sem CORS (a WebView bloqueia cp.pt/adsb por falta de cabeçalhos).
+    // O JS chama httpGet(id,url,headers) e recebe window.__httpRes(id,ok,corpo).
+    @JavascriptInterface
+    fun httpGet(reqId: String, url: String, headersJson: String) {
+        Thread {
+            try {
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 15000
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) TaxiPracas")
+                conn.setRequestProperty("Accept", "application/json")
+                try {
+                    val h = JSONObject(headersJson)
+                    val it = h.keys()
+                    while (it.hasNext()) {
+                        val k = it.next()
+                        conn.setRequestProperty(k, h.optString(k))
+                    }
+                } catch (e: Exception) { }
+                val code = try { conn.responseCode } catch (e: Exception) { -1 }
+                val stream = try {
+                    if (code in 200..299) conn.inputStream else conn.errorStream
+                } catch (e: Exception) { null }
+                val body = try { stream?.bufferedReader()?.readText() ?: "" } catch (e: Exception) { "" }
+                responder(reqId, code in 200..299, if (code in 200..299) body else "HTTP $code")
+            } catch (e: Exception) {
+                responder(reqId, false, e.message ?: "falha de rede")
+            }
+        }.start()
+    }
+
+    private fun responder(reqId: String, ok: Boolean, corpo: String) {
+        try {
+            val wv: WebView? = WebViewHolder.wv
+            val payload = JSONObject.quote(corpo)
+            val rid = JSONObject.quote(reqId)
+            wv?.post {
+                try { wv.evaluateJavascript("window.__httpRes($rid,${if (ok) 1 else 0},$payload)", null) }
+                catch (e: Exception) { }
+            }
+        } catch (e: Exception) { }
+    }
 }
 
 // Alarmes exatos das marcações (funcionam com a app fechada / ecrã desligado).

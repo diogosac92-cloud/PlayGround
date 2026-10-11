@@ -14,7 +14,8 @@
         android:label="Táxi Praças"
         android:icon="@android:mipmap/sym_def_app_icon"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:allowBackup="true">
+        android:allowBackup="true"
+        android:largeHeap="true">
 
         <activity
             android:name=".MainActivity"
